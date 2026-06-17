@@ -1,0 +1,160 @@
+# 错题分析 — 公务员备考助手
+
+## 项目概述
+
+PWA 应用，帮助公务员考试备考者追踪错题、分析薄弱点、制定复习计划。
+
+- 纯前端，无后端服务
+- 数据存储在浏览器 IndexedDB（不上传）
+- 支持离线使用，可添加到手机主屏幕
+
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 构建 | Vite + TypeScript |
+| 框架 | React 19 |
+| 路由 | React Router v7 |
+| 样式 | Tailwind CSS v3 |
+| 数据库 | Dexie.js (IndexedDB) |
+| 图表 | Recharts |
+| PWA | vite-plugin-pwa |
+
+## 目录结构
+
+```
+src/
+├── models/          # TypeScript 类型定义
+│   ├── exam.ts      # 枚举（模块、错误类型等）+ 中文标签
+│   ├── mistake.ts   # MistakeRecord 核心实体
+│   ├── analytics.ts # 分析/报告类型
+│   └── review.ts    # 复习计划类型
+├── db/              # 数据访问层
+│   ├── database.ts  # Dexie 实例 + Schema 定义
+│   └── repositories/ # mistakeRepository / reviewPlanRepository / analysisReportRepository
+├── services/        # 纯业务逻辑（无 React 依赖）
+│   ├── analyticsService.ts  # 薄弱点检测算法
+│   ├── reviewPlanner.ts     # 间隔复习 + 优先级排序
+│   └── statsCalculator.ts   # 统计计算
+├── hooks/           # React hooks（useLiveQuery 响应式数据）
+├── components/
+│   ├── layout/      # MobileShell / BottomNav / PageHeader / FAB
+│   └── charts/      # WeakPointRadar / ErrorTypePie / ModuleBar / TrendLine
+├── pages/           # 页面组件
+│   ├── DashboardPage.tsx       # 首页概览
+│   ├── MistakeLogPage.tsx      # 错题录入
+│   ├── MistakeListPage.tsx     # 错题本
+│   ├── MistakeDetailPage.tsx   # 错题详情 + AI 诊断 + 改进追踪
+│   ├── AnalyticsPage.tsx       # 统计分析图表
+│   ├── ReviewPlanPage.tsx      # 复习计划
+│   └── SettingsPage.tsx        # 设置（导出/导入）
+└── lib/             # 工具函数
+```
+
+## 架构分层
+
+```
+Pages (Controller)
+  ↓
+Hooks (依赖注入)
+  ↓
+Services (纯函数业务逻辑)
+  ↓
+Repositories (DAO，封装 IndexedDB 操作)
+  ↓
+Dexie.js (ORM)
+  ↓
+IndexedDB (浏览器内置数据库)
+```
+
+## 核心算法
+
+### 薄弱点检测
+
+```
+weaknessScore = 错误次数×2 + 近7天×3 + 重复≥3次×5 - 已掌握×1 - 复习次数×0.5
+```
+
+### 智能复习计划
+
+按薄弱分数 DESC → 距上次复习时间 DESC → 错误次数 DESC 排序，每日上限 20 题，单模块不超过 60%。
+
+## 开发
+
+```bash
+npm install
+npm run dev        # 启动开发服务器 http://localhost:5173
+npm run build      # 生产构建 → dist/
+npm run preview    # 预览构建结果
+```
+
+## 部署
+
+### 部署到 GitHub Pages（推荐，免费）
+
+```bash
+# 1. 在 github.com 创建仓库 weakDetect
+
+# 2. 构建
+npm run build
+
+# 3. 推送 dist 到 GitHub
+cd dist
+git init
+git checkout -b main
+git add .
+git commit -m "deploy"
+git remote add origin https://github.com/你的GitHub用户名/weakDetect.git
+git push -f origin main
+
+# 4. 开启 GitHub Pages
+#    Settings → Pages → Source: Deploy from a branch
+#    Branch: main, / (root) → Save
+```
+
+**SPA 路由说明**：每次 `npm run build` 会自动生成 `404.html`（复制自 `index.html`），这样 React Router 能处理所有路径。
+
+**访问地址**：`https://你的用户名.github.io/weakDetect`
+
+### 后续更新
+
+```bash
+npm run build
+cd dist
+git add .
+git commit -m "update"
+git push
+```
+
+### PWA 安装
+
+部署后：
+- Android：Chrome 打开 → 底部弹窗「添加到主屏幕」
+- iPhone：Safari 打开 → 分享按钮 → 「添加到主屏幕」
+
+安装后全屏运行，无浏览器地址栏和工具栏。
+
+## 数据结构说明
+
+### MistakeRecord（错题记录）
+
+| 字段 | 说明 |
+|------|------|
+| entryType | manual / photo（录入方式） |
+| questionType | mistake / doubtful（错题还是存疑） |
+| questionStem | 题目原文（AI 深度分析必需） |
+| correctAnswer / myAnswer | 正确答案 / 用户答案 |
+| quickDiagnosis | AI 实时诊断结果 |
+| batchAnalysis | AI 批量分析后的归类 |
+| improvementAttempts | 改进尝试记录 |
+
+### 分析覆盖率
+
+错题列表页顶部会提示：有多少道题缺少题目原文（无法参与 AI 分析）。详情页可补录原文。
+
+## 后续计划
+
+- [ ] 拍照 OCR（通义千问 VL）
+- [ ] AI 深度诊断（DeepSeek V4）
+- [ ] 跨题归类分析
+- [ ] 改进效果追踪反馈闭环
