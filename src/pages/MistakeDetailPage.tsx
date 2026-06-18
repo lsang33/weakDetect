@@ -101,9 +101,11 @@ export function MistakeDetailPage() {
         <h2 className="text-lg font-semibold text-slate-900 mb-1">{mistake.knowledgePoint}</h2>
         <p className="text-sm text-slate-500 mb-3">{mistake.subCategory}</p>
 
-        <p className="text-sm text-slate-600 mb-1">
-          <span className="text-slate-400">题目来源：</span>{mistake.source}
-        </p>
+        {mistake.source && (
+          <p className="text-sm text-slate-600 mb-1">
+            <span className="text-slate-400">题目来源：</span>{mistake.source}
+          </p>
+        )}
 
         {mistake.difficulty && (
           <p className="text-sm text-slate-600 mb-1">
@@ -163,12 +165,57 @@ export function MistakeDetailPage() {
             <div className="mt-3 space-y-3">
               {mistake.quickDiagnosis && (
                 <>
+                  {(mistake.quickDiagnosis.difficulty || mistake.quickDiagnosis.examPoint) && (
+                    <div className="bg-purple-100/50 rounded-lg p-3 space-y-1.5 mb-3">
+                      {mistake.quickDiagnosis.difficulty && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-purple-500 shrink-0 mt-0.5">📊</span>
+                          <p className="text-xs text-purple-800">{mistake.quickDiagnosis.difficulty}</p>
+                        </div>
+                      )}
+                      {mistake.quickDiagnosis.examPoint && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-purple-500 shrink-0 mt-0.5">🎯</span>
+                          <p className="text-xs text-purple-800">{mistake.quickDiagnosis.examPoint}</p>
+                        </div>
+                      )}
+                      {mistake.quickDiagnosis.keyDifferentiator && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-purple-500 shrink-0 mt-0.5">🔑</span>
+                          <p className="text-xs text-purple-800">{mistake.quickDiagnosis.keyDifferentiator}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={cn(
+                      'text-xs px-1.5 py-0.5 rounded-full',
+                      mistake.correctAnswer && mistake.quickDiagnosis.aiAnswer === mistake.correctAnswer.trim()
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-red-100 text-red-600'
+                    )}>
+                      AI 答案：{mistake.quickDiagnosis.aiAnswer}
+                      {mistake.correctAnswer && mistake.quickDiagnosis.aiAnswer === mistake.correctAnswer.trim() ? ' ✅' : ' ❌'}
+                    </span>
+                  </div>
+                  {mistake.quickDiagnosis.solution && (
+                    <div>
+                      <p className="text-xs text-purple-400 font-medium mb-1">📝 解题思路</p>
+                      <p className="text-sm text-purple-800 whitespace-pre-wrap leading-relaxed">{mistake.quickDiagnosis.solution}</p>
+                    </div>
+                  )}
+                  {mistake.quickDiagnosis.traps && (
+                    <div>
+                      <p className="text-xs text-purple-400 font-medium mb-1">🎯 陷阱</p>
+                      <p className="text-sm text-purple-800">{mistake.quickDiagnosis.traps}</p>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-xs text-purple-400 font-medium mb-1">卡点</p>
+                    <p className="text-xs text-purple-400 font-medium mb-1">🔍 错因</p>
                     <p className="text-sm text-purple-800">{mistake.quickDiagnosis.rootCause}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-purple-400 font-medium mb-1">纠正方法</p>
+                    <p className="text-xs text-purple-400 font-medium mb-1">💡 方法</p>
                     <p className="text-sm text-purple-800">{mistake.quickDiagnosis.fix}</p>
                   </div>
                 </>

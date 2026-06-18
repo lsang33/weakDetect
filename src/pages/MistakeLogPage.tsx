@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Camera, Edit3 } from 'lucide-react'
+import { ArrowLeft, Save, Camera, Edit3, RefreshCw, Brain, ChevronUp, ChevronDown } from 'lucide-react'
 import { useMistakeActions, useKnowledgePoints, useSubCategories } from '../hooks/useMistakes'
 import {
   ExamModule, ErrorType, EntryType, QuestionType, JudgmentSubType,
@@ -10,8 +10,31 @@ import {
   ALL_JUDGMENT_SUB_TYPES,
 } from '../lib/constants'
 import { cn } from '../lib/cn'
+import { CameraCapture } from '../components/CameraCapture'
 import type { CreateMistakeInput } from '../models/mistake'
 import type { Difficulty } from '../models/exam'
+import type { OcrResult } from '../services/ocrService'
+import { diagnoseMistake, type DiagnosisResult } from '../services/diagnoseService'
+import type { QuickDiagnosis } from '../models/mistake'
+import { MODULE_LABELS as ML } from '../lib/constants'
+
+/** 把 OCR 返回的模块中文名映射到枚举 */
+function mapModule(ocrModule: string): ExamModule {
+  const m = ocrModule.trim()
+  if (m.includes('言语')) return ExamModule.VERBAL
+  if (m.includes('数量')) return ExamModule.QUANTITATIVE
+  if (m.includes('判断')) return ExamModule.JUDGMENT
+  if (m.includes('资料')) return ExamModule.DATA_ANALYSIS
+  if (m.includes('常识')) return ExamModule.COMMON_KNOWLEDGE
+  return ExamModule.JUDGMENT
+}
+
+/** 把 OCR 返回的难度映射到 1-5 */
+function mapDifficulty(d: unknown): Difficulty {
+  const n = Number(d)
+  if (n >= 1 && n <= 5) return n as Difficulty
+  return 3
+}
 
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 const ALL_ERROR_TYPES = Object.values(ErrorType) as ErrorType[]
@@ -34,9 +57,65 @@ export function MistakeLogPage() {
   const [questionStem, setQuestionStem] = useState('')
   const [correctAnswer, setCorrectAnswer] = useState('')
   const [myAnswer, setMyAnswer] = useState('')
+  const stemRef = useRef<HTMLTextAreaElement>(null)
+
+  const autoResize = useCallback(() => {
+    const el = stemRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [])
+
+  useEffect(() => { autoResize() }, [questionStem, autoResize])
   const [difficulty, setDifficulty] = useState<Difficulty>(3)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [diagnoses, setDiagnoses] = useState<DiagnosisResult[]>([])
+  const [selectedDiag, setSelectedDiag] = useState(0)
+  const [expandedDiags, setExpandedDiags] = useState<Set<number>>(new Set([0]))
+  const [diagnosing, setDiagnosing] = useState(false)
+  const [diagError, setDiagError] = useState('')
+  // 调试日志
+  const [debugLogs, setDebugLogs] = useState<{ time: string; msg: string; type: 'info' | 'error' | 'success' }[]>([])
+  const [showDebug, setShowDebug] = useState(false)
+
+  function addLog(msg: string, type: 'info' | 'error' | 'success' = 'info') {
+    const time = new Date().toLocaleTimeString('zh-CN')
+    setDebugLogs(prev => [...prev.slice(-19), { time, msg, type }])
+  }
+
+  function toggleExpand(i: number) {
+    setExpandedDiags(prev => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i); else next.add(i)
+      return next
+    })
+  }
+
+  /** OCR 识别完成后自动填表 */
+  function handleOcrResult(result: OcrResult) {
+    setEntryType(EntryType.PHOTO)
+    setModule(mapModule(result.module))
+    setKnowledgePoint(result.knowledgePoint || '')
+    setSubCategory(result.subCategory || '')
+    setQuestionStem(result.questionStem || '')
+    setCorrectAnswer(result.correctAnswer || '')
+    setDifficulty(mapDifficulty(result.difficulty))
+    if (result.errorType) {
+      const et = Object.values(ErrorType).find(
+        e => ERROR_TYPE_LABELS[e] === result.errorType || e === result.errorType
+      )
+      if (et) setErrorType(et)
+    }
+    if (result.judgmentSubType) {
+      const jst = Object.values(JudgmentSubType).find(
+        j => JUDGMENT_SUB_LABELS[j] === result.judgmentSubType || j === result.judgmentSubType
+      )
+      if (jst) setJudgmentSubType(jst)
+    }
+    if (result.explanation) setNotes(result.explanation)
+    // 诊断由用户手动触发，OCR 只填表
+  }
 
   const [showKPSuggestions, setShowKPSuggestions] = useState(false)
   const [showSubSuggestions, setShowSubSuggestions] = useState(false)
@@ -49,7 +128,7 @@ export function MistakeLogPage() {
     sub.toLowerCase().includes(subCategory.toLowerCase()) && sub !== subCategory
   ).slice(0, 5)
 
-  const isValid = module && errorType && subCategory.trim() && knowledgePoint.trim() && source.trim()
+  const isValid = module && errorType && subCategory.trim() && knowledgePoint.trim()
 
   async function handleSubmit() {
     if (!isValid || !module || !errorType) return
@@ -62,13 +141,26 @@ export function MistakeLogPage() {
       subCategory: subCategory.trim(),
       judgmentSubType: module === ExamModule.JUDGMENT ? judgmentSubType : undefined,
       errorType,
-      source: source.trim(),
+      source: source.trim() || undefined,
       knowledgePoint: knowledgePoint.trim(),
       questionStem: questionStem.trim() || undefined,
       correctAnswer: correctAnswer.trim() || undefined,
       myAnswer: myAnswer.trim() || undefined,
       notes: notes.trim() || undefined,
       difficulty,
+      quickDiagnosis: diagnoses.length > 0 ? {
+        aiAnswer: diagnoses[selectedDiag].aiAnswer,
+        aiCorrect: diagnoses[selectedDiag].aiCorrect,
+        difficulty: diagnoses[selectedDiag].difficulty,
+        examPoint: diagnoses[selectedDiag].examPoint,
+        keyDifferentiator: diagnoses[selectedDiag].keyDifferentiator,
+        solution: diagnoses[selectedDiag].solution,
+        traps: diagnoses[selectedDiag].traps,
+        userErrorStep: diagnoses[selectedDiag].userErrorStep,
+        rootCause: diagnoses[selectedDiag].rootCause,
+        fix: diagnoses[selectedDiag].fix,
+        analyzedAt: new Date(),
+      } : undefined,
     }
 
     await create(input)
@@ -110,13 +202,12 @@ export function MistakeLogPage() {
             )}
           >
             <Camera size={16} /> 拍照识别
-            <span className="text-[10px] bg-purple-100 text-purple-500 px-1.5 py-0.5 rounded-full ml-1">即将上线</span>
           </button>
         </div>
         {entryType === EntryType.PHOTO && (
-          <p className="text-xs text-slate-400 mt-2">
-            拍照识别功能开发中，当前可先使用手录方式记录错题。
-          </p>
+          <div className="mt-2">
+            <CameraCapture onResult={handleOcrResult} />
+          </div>
         )}
       </div>
 
@@ -277,11 +368,12 @@ export function MistakeLogPage() {
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">题目原文</label>
             <textarea
+              ref={stemRef}
               value={questionStem}
-              onChange={e => setQuestionStem(e.target.value)}
-              placeholder="粘贴或输入题目完整内容（拍照识别上线后可自动填充）"
+              onChange={e => { setQuestionStem(e.target.value); autoResize() }}
+              placeholder="拍照后自动填充，也可手动粘贴题目原文"
               rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white resize-none"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white resize-none overflow-hidden"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -309,9 +401,178 @@ export function MistakeLogPage() {
         </div>
       </div>
 
+      {/* 诊断中 loading */}
+      {diagnosing && (
+        <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <RefreshCw size={16} className="text-purple-500 animate-spin" />
+            <span className="text-sm text-purple-600">AI 正在分析错因...</span>
+          </div>
+        </div>
+      )}
+
+      {/* 诊断结果列表 */}
+      {diagnoses.map((d, i) => {
+        const expanded = expandedDiags.has(i)
+        return (
+        <div key={i} className={cn(
+          'rounded-xl border animate-fade-in overflow-hidden',
+          selectedDiag === i ? 'bg-purple-50 border-purple-300 ring-2 ring-purple-200' : 'bg-white border-slate-200'
+        )}>
+          {/* 摘要行：始终可见 */}
+          <button
+            onClick={() => toggleExpand(i)}
+            className={cn('w-full flex items-center justify-between px-4 py-3')}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-purple-500">🤖 AI 诊断 #{i + 1}</span>
+              <span className={cn(
+                'text-xs px-1.5 py-0.5 rounded-full',
+                d.aiCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+              )}>
+                {d.aiCorrect ? '✅' : '⚠️'} {d.aiAnswer}
+              </span>
+              <span className="text-xs text-slate-400 truncate max-w-32">
+                {d.difficulty?.replace(/★+/g, '').trim() || d.rootCause?.slice(0, 20)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelectedDiag(i) }}
+                className={cn(
+                  'text-xs px-3 py-1 rounded-lg font-medium transition-colors',
+                  selectedDiag === i
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-slate-100 text-slate-500 hover:bg-purple-100'
+                )}
+              >
+                {selectedDiag === i ? '已选用 ✓' : '选用'}
+              </button>
+              {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+            </div>
+          </button>
+
+          {/* 展开内容 */}
+          {expanded && (
+            <div className="px-4 pb-4 space-y-3 border-t border-slate-100 pt-3">
+              {/* 整体分析 */}
+              <div className="bg-purple-100/50 rounded-lg p-3 space-y-1.5">
+                {d.difficulty && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-purple-500 shrink-0 mt-0.5">📊</span>
+                    <p className="text-xs text-purple-800">{d.difficulty}</p>
+                  </div>
+                )}
+                {d.examPoint && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-purple-500 shrink-0 mt-0.5">🎯</span>
+                    <p className="text-xs text-purple-800">{d.examPoint}</p>
+                  </div>
+                )}
+                {d.keyDifferentiator && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-purple-500 shrink-0 mt-0.5">🔑</span>
+                    <p className="text-xs text-purple-800">{d.keyDifferentiator}</p>
+                  </div>
+                )}
+              </div>
+              {d.solution && (
+                <div>
+                  <p className="text-xs text-purple-400 mb-1">📝 逐项解析</p>
+                  <p className="text-sm text-purple-800 whitespace-pre-wrap leading-relaxed">{d.solution}</p>
+                </div>
+              )}
+              {d.traps && (
+                <div>
+                  <p className="text-xs text-purple-400 mb-1">🎯 陷阱</p>
+                  <p className="text-sm text-purple-800">{d.traps}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-purple-200">
+                <div>
+                  <p className="text-xs text-purple-400 mb-1">🔍 错因</p>
+                  <p className="text-sm text-purple-800">{d.rootCause}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-purple-400 mb-1">💡 方法</p>
+                  <p className="text-sm text-purple-800">{d.fix}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )})}
+
+      {/* 诊断错误提示 */}
+      {diagError && (
+        <div className="bg-red-50 rounded-xl p-3 border border-red-200 animate-fade-in">
+          <p className="text-sm text-red-600">{diagError}</p>
+        </div>
+      )}
+
+      {/* 调试日志开关 */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          className="text-[10px] text-slate-400 underline"
+        >
+          {showDebug ? '隐藏' : '调试日志'} ({debugLogs.length})
+        </button>
+      </div>
+
+      {/* 调试日志面板 */}
+      {showDebug && debugLogs.length > 0 && (
+        <div className="bg-slate-900 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1 animate-fade-in">
+          {debugLogs.map((log, i) => (
+            <p key={i} className={cn(
+              'text-[10px] font-mono',
+              log.type === 'error' ? 'text-red-400' :
+              log.type === 'success' ? 'text-green-400' : 'text-slate-400'
+            )}>
+              [{log.time}] {log.msg}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* 手动诊断按钮 */}
+      {questionStem.trim() && correctAnswer.trim() && !diagnosing && (
+        <button
+          onClick={() => {
+            if (!module) return
+            const apiKey = localStorage.getItem('dashscope_key')
+            if (!apiKey) {
+              setDiagError('未配置通义千问 API Key，请先去设置页填写')
+              return
+            }
+            setDiagError('')
+            setDiagnosing(true)
+            addLog(`开始诊断 #${diagnoses.length + 1}（${ML[module]}）`, 'info')
+            diagnoseMistake(questionStem, correctAnswer, myAnswer || undefined, ML[module], apiKey)
+              .then(d => {
+                setDiagnoses(prev => {
+                  setExpandedDiags(ex => new Set([...ex, prev.length]))
+                  return [...prev, d]
+                })
+                setDiagnosing(false)
+                addLog(`诊断 #${diagnoses.length + 1} 完成 AI答案=${d.aiAnswer} ${d.aiCorrect ? '✓' : '✗'}`, d.aiCorrect ? 'success' : 'error')
+              })
+              .catch(err => {
+                setDiagnosing(false)
+                const msg = err instanceof Error ? err.message : String(err)
+                setDiagError(msg)
+                addLog(`诊断失败: ${msg}`, 'error')
+              })
+          }}
+          className="w-full py-2 rounded-xl bg-purple-100 text-purple-600 text-sm font-medium flex items-center justify-center gap-2"
+        >
+          <Brain size={16} /> AI 诊断这道题
+        </button>
+      )}
+
       {/* 题目来源 */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">题目来源 *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">题目来源</label>
         <input
           type="text"
           value={source}

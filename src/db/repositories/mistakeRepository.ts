@@ -138,7 +138,7 @@ export const mistakeRepository = {
 
   async getAllSources(): Promise<string[]> {
     const all = await db.mistakes.toArray()
-    const sources = new Set(all.map(m => m.source))
+    const sources = new Set(all.map(m => m.source).filter(Boolean) as string[])
     return Array.from(sources).sort()
   },
 }

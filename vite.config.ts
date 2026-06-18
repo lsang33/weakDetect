@@ -7,6 +7,9 @@ import { execSync } from 'child_process'
 
 export default defineConfig({
   base: '/weakDetect/',
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })),
+  },
   plugins: [
     react(),
     {

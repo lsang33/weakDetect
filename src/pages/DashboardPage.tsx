@@ -45,7 +45,7 @@ function RecentMistakeCard({ mistake }: { mistake: MistakeRecord }) {
             </span>
           </div>
           <p className="text-sm font-medium text-slate-800 truncate">{mistake.knowledgePoint}</p>
-          <p className="text-xs text-slate-400 mt-0.5">来源：{mistake.source}</p>
+          {mistake.source && <p className="text-xs text-slate-400 mt-0.5">来源：{mistake.source}</p>}
         </div>
         <span className="text-xs text-slate-400 shrink-0 ml-2">
           {formatRelative(mistake.createdAt)}

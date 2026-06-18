@@ -1,8 +1,90 @@
-import { useState } from 'react'
-import { Download, Upload, Trash2, Info } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { db } from '../db/database'
 import { cn } from '../lib/cn'
+
+function ApiSettings() {
+  const [dashScopeKey, setDashScopeKey] = useState('')
+  const [deepseekKey, setDeepseekKey] = useState('')
+  const [showDash, setShowDash] = useState(false)
+  const [showDS, setShowDS] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    setDashScopeKey(localStorage.getItem('dashscope_key') || '')
+    setDeepseekKey(localStorage.getItem('deepseek_key') || '')
+  }, [])
+
+  function saveKeys() {
+    localStorage.setItem('dashscope_key', dashScopeKey.trim())
+    localStorage.setItem('deepseek_key', deepseekKey.trim())
+    setMsg('✅ API Key 已保存')
+    setTimeout(() => setMsg(''), 2000)
+  }
+
+  return (
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Key size={16} className="text-purple-500" />
+          <h2 className="text-sm font-semibold text-slate-800">AI 服务设置</h2>
+        </div>
+        <button
+          onClick={saveKeys}
+          className="flex items-center gap-1 text-xs font-medium text-white bg-purple-500 px-3 py-1.5 rounded-lg"
+        >
+          <Save size={12} /> 保存
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {/* DashScope Key (拍照 OCR) */}
+        <div>
+          <label className="text-xs font-medium text-slate-600 mb-1 block">
+            通义千问 API Key（拍照识题）
+            <span className="text-slate-400 ml-1">dashscope.aliyun.com</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showDash ? 'text' : 'password'}
+              value={dashScopeKey}
+              onChange={e => setDashScopeKey(e.target.value)}
+              placeholder="sk-xxxxxxxx"
+              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+            />
+            <button onClick={() => setShowDash(!showDash)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+              {showDash ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* DeepSeek Key (深度分析) */}
+        <div>
+          <label className="text-xs font-medium text-slate-600 mb-1 block">
+            DeepSeek API Key（深度分析）
+            <span className="text-slate-400 ml-1">待上线</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showDS ? 'text' : 'password'}
+              value={deepseekKey}
+              onChange={e => setDeepseekKey(e.target.value)}
+              placeholder="sk-xxxxxxxx"
+              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              disabled
+            />
+            <button onClick={() => setShowDS(!showDS)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+              {showDS ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {msg && <p className="text-xs text-center text-purple-600 mt-3">{msg}</p>}
+    </div>
+  )
+}
 
 export function SettingsPage() {
   const mistakes = useMistakes()
@@ -129,6 +211,9 @@ export function SettingsPage() {
         </button>
       </div>
 
+      {/* API 设置 */}
+      <ApiSettings />
+
       {/* 提示消息 */}
       {message && (
         <div className="text-center text-sm font-medium py-3 bg-white rounded-xl border border-slate-100 animate-fade-in">
@@ -140,10 +225,12 @@ export function SettingsPage() {
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <h2 className="text-sm font-semibold text-slate-800 mb-2">关于</h2>
         <p className="text-xs text-slate-400 leading-relaxed">
-          错题分析 v1.0 — 公务员备考助手<br />
+          上岸 v1.0 — 公务员备考助手<br />
           所有数据存储在本地浏览器，不上传服务器。<br />
           PWA 支持离线使用，可添加到手机主屏幕。<br />
           建议定期导出数据备份。
+          <br /><br />
+          <span className="text-slate-300">构建时间：{__BUILD_TIME__}</span>
         </p>
       </div>
     </div>

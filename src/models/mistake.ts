@@ -2,6 +2,14 @@ import type { ExamModule, ErrorType, JudgmentSubType, Difficulty, EntryType, Que
 
 /** AI 实时诊断（拍照后即时生成） */
 export interface QuickDiagnosis {
+  aiAnswer: string
+  aiCorrect: boolean
+  difficulty: string
+  examPoint: string
+  keyDifferentiator: string
+  solution: string
+  traps: string
+  userErrorStep: string
   rootCause: string
   fix: string
   analyzedAt: Date
@@ -29,7 +37,7 @@ export interface MistakeRecord {
   subCategory: string
   judgmentSubType?: JudgmentSubType
   errorType: ErrorType
-  source: string
+  source?: string
   knowledgePoint: string
 
   // === 新增：录入相关 ===

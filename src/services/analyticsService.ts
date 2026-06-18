@@ -163,7 +163,7 @@ export function searchMistakes(
   return mistakes.filter(m =>
     m.knowledgePoint.toLowerCase().includes(q) ||
     m.subCategory.toLowerCase().includes(q) ||
-    m.source.toLowerCase().includes(q) ||
+    m.source?.toLowerCase().includes(q) ||
     (m.questionStem?.toLowerCase().includes(q)) ||
     (m.notes?.toLowerCase().includes(q))
   )
