@@ -108,7 +108,7 @@ export async function analyzeExamImage(imageFile: File, apiKey: string): Promise
   let json = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
 
   // 修复 JSON 字符串内未转义的控制字符
-  json = json.replace(/"([^"\\]|\\.)*"/g, (match) => {
+  json = json.replace(/"([^"\\]|\\.)*"/g, (match: string) => {
     return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
   })
 
