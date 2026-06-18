@@ -169,19 +169,19 @@ export function MistakeDetailPage() {
                     <div className="bg-purple-100/50 rounded-lg p-3 space-y-1.5 mb-3">
                       {mistake.quickDiagnosis.difficulty && (
                         <div className="flex items-start gap-2">
-                          <span className="text-xs text-purple-500 shrink-0 mt-0.5">📊</span>
+                          <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">难度</span>
                           <p className="text-xs text-purple-800">{mistake.quickDiagnosis.difficulty}</p>
                         </div>
                       )}
                       {mistake.quickDiagnosis.examPoint && (
                         <div className="flex items-start gap-2">
-                          <span className="text-xs text-purple-500 shrink-0 mt-0.5">🎯</span>
+                          <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">考点</span>
                           <p className="text-xs text-purple-800">{mistake.quickDiagnosis.examPoint}</p>
                         </div>
                       )}
                       {mistake.quickDiagnosis.keyDifferentiator && (
                         <div className="flex items-start gap-2">
-                          <span className="text-xs text-purple-500 shrink-0 mt-0.5">🔑</span>
+                          <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">关键</span>
                           <p className="text-xs text-purple-800">{mistake.quickDiagnosis.keyDifferentiator}</p>
                         </div>
                       )}
@@ -200,23 +200,23 @@ export function MistakeDetailPage() {
                   </div>
                   {mistake.quickDiagnosis.solution && (
                     <div>
-                      <p className="text-xs text-purple-400 font-medium mb-1">📝 解题思路</p>
-                      <p className="text-sm text-purple-800 whitespace-pre-wrap leading-relaxed">{mistake.quickDiagnosis.solution}</p>
+                      <p className="text-xs text-purple-400 font-medium mb-1">逐项解析</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{mistake.quickDiagnosis.solution}</p>
                     </div>
                   )}
                   {mistake.quickDiagnosis.traps && (
                     <div>
-                      <p className="text-xs text-purple-400 font-medium mb-1">🎯 陷阱</p>
-                      <p className="text-sm text-purple-800">{mistake.quickDiagnosis.traps}</p>
+                      <p className="text-xs text-purple-400 font-medium mb-1">陷阱</p>
+                      <p className="text-sm text-slate-700">{mistake.quickDiagnosis.traps}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-xs text-purple-400 font-medium mb-1">🔍 错因</p>
-                    <p className="text-sm text-purple-800">{mistake.quickDiagnosis.rootCause}</p>
+                    <p className="text-xs text-purple-400 font-medium mb-1">错因</p>
+                    <p className="text-sm text-slate-700">{mistake.quickDiagnosis.rootCause}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-purple-400 font-medium mb-1">💡 方法</p>
-                    <p className="text-sm text-purple-800">{mistake.quickDiagnosis.fix}</p>
+                    <p className="text-xs text-purple-400 font-medium mb-1">方法</p>
+                    <p className="text-sm text-slate-700">{mistake.quickDiagnosis.fix}</p>
                   </div>
                 </>
               )}

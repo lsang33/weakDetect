@@ -14,7 +14,8 @@ import { CameraCapture } from '../components/CameraCapture'
 import type { CreateMistakeInput } from '../models/mistake'
 import type { Difficulty } from '../models/exam'
 import type { OcrResult } from '../services/ocrService'
-import { diagnoseMistake, type DiagnosisResult } from '../services/diagnoseService'
+import { diagnoseMistake as qwenDiagnose, type DiagnosisResult } from '../services/diagnoseService'
+import { deepseekDiagnose } from '../services/deepseekService'
 import type { QuickDiagnosis } from '../models/mistake'
 import { MODULE_LABELS as ML } from '../lib/constants'
 
@@ -36,6 +37,27 @@ function mapDifficulty(d: unknown): Difficulty {
   return 3
 }
 
+const ANSWER_CHIPS = ['A', 'B', 'C', 'D', 'E', '对', '错']
+
+function QuickChips({ onPick, selected, color }: { onPick: (v: string) => void; selected: string; color: 'green' | 'red' }) {
+  const activeClass = color === 'green' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {ANSWER_CHIPS.map(ch => (
+        <button
+          key={ch}
+          onClick={() => onPick(selected === ch ? '' : ch)}
+          className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all ${
+            selected === ch ? activeClass : 'bg-white text-slate-500 border-slate-200 active:bg-slate-50'
+          }`}
+        >
+          {ch}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 const ALL_ERROR_TYPES = Object.values(ErrorType) as ErrorType[]
 const ALL_JUDGMENT_SUB = ALL_JUDGMENT_SUB_TYPES as JudgmentSubType[]
@@ -51,7 +73,7 @@ export function MistakeLogPage() {
   const [module, setModule] = useState<ExamModule | null>(null)
   const [subCategory, setSubCategory] = useState('')
   const [judgmentSubType, setJudgmentSubType] = useState<JudgmentSubType | undefined>()
-  const [errorType, setErrorType] = useState<ErrorType | null>(null)
+  const [errorType, setErrorType] = useState<ErrorType>(ErrorType.KNOWLEDGE_GAP)
   const [source, setSource] = useState('')
   const [knowledgePoint, setKnowledgePoint] = useState('')
   const [questionStem, setQuestionStem] = useState('')
@@ -113,8 +135,7 @@ export function MistakeLogPage() {
       )
       if (jst) setJudgmentSubType(jst)
     }
-    if (result.explanation) setNotes(result.explanation)
-    // 诊断由用户手动触发，OCR 只填表
+    // 备注不由AI填写
   }
 
   const [showKPSuggestions, setShowKPSuggestions] = useState(false)
@@ -128,7 +149,7 @@ export function MistakeLogPage() {
     sub.toLowerCase().includes(subCategory.toLowerCase()) && sub !== subCategory
   ).slice(0, 5)
 
-  const isValid = module && errorType && subCategory.trim() && knowledgePoint.trim()
+  const isValid = module
 
   async function handleSubmit() {
     if (!isValid || !module || !errorType) return
@@ -239,7 +260,7 @@ export function MistakeLogPage() {
 
       {/* 模块选择 */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">所属模块 *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">所属模块 <span className="text-xs text-slate-400 font-normal">（AI 识别）</span></label>
         <div className="grid grid-cols-2 gap-2">
           {ALL_MODULES.map(m => (
             <button
@@ -285,7 +306,7 @@ export function MistakeLogPage() {
 
       {/* 错误类型 */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">错误类型 *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">错误类型 <span className="text-xs text-slate-400 font-normal">（默认知识点盲区）</span></label>
         <div className="grid grid-cols-2 gap-2">
           {ALL_ERROR_TYPES.map(et => (
             <button
@@ -307,7 +328,7 @@ export function MistakeLogPage() {
 
       {/* 知识点 + 细分考点 */}
       <div className="relative">
-        <label className="block text-sm font-medium text-slate-700 mb-2">知识点 *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">知识点 <span className="text-xs text-slate-400 font-normal">（AI 自动填充）</span></label>
         <input
           type="text"
           value={knowledgePoint}
@@ -333,7 +354,7 @@ export function MistakeLogPage() {
       </div>
 
       <div className="relative">
-        <label className="block text-sm font-medium text-slate-700 mb-2">细分考点 *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">细分考点 <span className="text-xs text-slate-400 font-normal">（AI 自动填充）</span></label>
         <input
           type="text"
           value={subCategory}
@@ -377,25 +398,27 @@ export function MistakeLogPage() {
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">正确答案</label>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-slate-600">正确答案</label>
               <input
                 type="text"
                 value={correctAnswer}
                 onChange={e => setCorrectAnswer(e.target.value)}
                 placeholder="例如：B"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 bg-white"
               />
+              <QuickChips onPick={setCorrectAnswer} selected={correctAnswer} color="green" />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">我的答案</label>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-slate-600">我的答案</label>
               <input
                 type="text"
                 value={myAnswer}
                 onChange={e => setMyAnswer(e.target.value)}
                 placeholder="例如：C"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 bg-white"
               />
+              <QuickChips onPick={setMyAnswer} selected={myAnswer} color="red" />
             </div>
           </div>
         </div>
@@ -430,7 +453,7 @@ export function MistakeLogPage() {
                 'text-xs px-1.5 py-0.5 rounded-full',
                 d.aiCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
               )}>
-                {d.aiCorrect ? '✅' : '⚠️'} {d.aiAnswer}
+                答案 {d.aiAnswer} {d.aiCorrect ? '对' : '错'}
               </span>
               <span className="text-xs text-slate-400 truncate max-w-32">
                 {d.difficulty?.replace(/★+/g, '').trim() || d.rootCause?.slice(0, 20)}
@@ -459,43 +482,51 @@ export function MistakeLogPage() {
               <div className="bg-purple-100/50 rounded-lg p-3 space-y-1.5">
                 {d.difficulty && (
                   <div className="flex items-start gap-2">
-                    <span className="text-xs text-purple-500 shrink-0 mt-0.5">📊</span>
+                    <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">难度</span>
                     <p className="text-xs text-purple-800">{d.difficulty}</p>
                   </div>
                 )}
                 {d.examPoint && (
                   <div className="flex items-start gap-2">
-                    <span className="text-xs text-purple-500 shrink-0 mt-0.5">🎯</span>
+                    <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">考点</span>
                     <p className="text-xs text-purple-800">{d.examPoint}</p>
                   </div>
                 )}
                 {d.keyDifferentiator && (
                   <div className="flex items-start gap-2">
-                    <span className="text-xs text-purple-500 shrink-0 mt-0.5">🔑</span>
+                    <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">关键</span>
                     <p className="text-xs text-purple-800">{d.keyDifferentiator}</p>
                   </div>
                 )}
               </div>
+
+              {/* 题目回顾 */}
+              <details className="bg-slate-50 rounded-lg p-3 group">
+                <summary className="text-xs text-slate-500 cursor-pointer">题目回顾</summary>
+                <p className="text-xs text-slate-600 mt-2 whitespace-pre-wrap leading-relaxed">{questionStem}</p>
+              </details>
+
+              {/* 逐项解析 */}
               {d.solution && (
                 <div>
-                  <p className="text-xs text-purple-400 mb-1">📝 逐项解析</p>
-                  <p className="text-sm text-purple-800 whitespace-pre-wrap leading-relaxed">{d.solution}</p>
+                  <p className="text-xs text-purple-400 mb-1">逐项解析</p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{d.solution}</p>
                 </div>
               )}
               {d.traps && (
                 <div>
-                  <p className="text-xs text-purple-400 mb-1">🎯 陷阱</p>
-                  <p className="text-sm text-purple-800">{d.traps}</p>
+                  <p className="text-xs text-purple-400 mb-1">陷阱</p>
+                  <p className="text-sm text-slate-700">{d.traps}</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-purple-200">
                 <div>
-                  <p className="text-xs text-purple-400 mb-1">🔍 错因</p>
-                  <p className="text-sm text-purple-800">{d.rootCause}</p>
+                  <p className="text-xs text-purple-400 mb-1">错因</p>
+                  <p className="text-sm text-slate-700">{d.rootCause}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-purple-400 mb-1">💡 方法</p>
-                  <p className="text-sm text-purple-800">{d.fix}</p>
+                  <p className="text-xs text-purple-400 mb-1">方法</p>
+                  <p className="text-sm text-slate-700">{d.fix}</p>
                 </div>
               </div>
             </div>
@@ -539,23 +570,26 @@ export function MistakeLogPage() {
       {questionStem.trim() && correctAnswer.trim() && !diagnosing && (
         <button
           onClick={() => {
-            if (!module) return
-            const apiKey = localStorage.getItem('dashscope_key')
+            const modName = module ? ML[module] : '公务员考试'
+            const diagModel = localStorage.getItem('diag_model') || 'qwen'
+            const apiKey = localStorage.getItem(diagModel === 'deepseek' ? 'deepseek_key' : 'dashscope_key')
             if (!apiKey) {
-              setDiagError('未配置通义千问 API Key，请先去设置页填写')
+              setDiagError(`未配置${diagModel === 'deepseek' ? 'DeepSeek' : '通义千问'} API Key，请先去设置页填写`)
               return
             }
             setDiagError('')
             setDiagnosing(true)
-            addLog(`开始诊断 #${diagnoses.length + 1}（${ML[module]}）`, 'info')
-            diagnoseMistake(questionStem, correctAnswer, myAnswer || undefined, ML[module], apiKey)
+            const modelLabel = diagModel === 'deepseek' ? 'deepseek-reasoner(思考)' : 'qwen-max(思考)'
+            addLog(`开始诊断 #${diagnoses.length + 1} [${modelLabel}] ${modName}`, 'info')
+            const diagnose = diagModel === 'deepseek' ? deepseekDiagnose : qwenDiagnose
+            diagnose(questionStem, correctAnswer, myAnswer || undefined, modName, apiKey)
               .then(d => {
                 setDiagnoses(prev => {
                   setExpandedDiags(ex => new Set([...ex, prev.length]))
                   return [...prev, d]
                 })
                 setDiagnosing(false)
-                addLog(`诊断 #${diagnoses.length + 1} 完成 AI答案=${d.aiAnswer} ${d.aiCorrect ? '✓' : '✗'}`, d.aiCorrect ? 'success' : 'error')
+                addLog(`诊断 #${diagnoses.length + 1} 完成 [${modelLabel}] AI答案=${d.aiAnswer} ${d.aiCorrect ? '✓' : '✗'}`, d.aiCorrect ? 'success' : 'error')
               })
               .catch(err => {
                 setDiagnosing(false)

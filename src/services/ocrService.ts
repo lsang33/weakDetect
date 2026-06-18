@@ -113,10 +113,27 @@ export async function analyzeExamImage(imageFile: File, apiKey: string): Promise
   })
 
   try {
-    return JSON.parse(json) as OcrResult
+    const result = JSON.parse(json) as OcrResult
+    result.questionStem = formatQuestionStem(result.questionStem)
+    return result
   } catch {
     const match = json.match(/\{[\s\S]*\}/)
-    if (match) return JSON.parse(match[0]) as OcrResult
+    if (match) {
+      const result = JSON.parse(match[0]) as OcrResult
+      result.questionStem = formatQuestionStem(result.questionStem)
+      return result
+    }
     throw new Error(`AI 返回格式异常: ${json}`)
   }
+}
+
+/** 修复选项换行：确保每个 A. B. C. D. 前有换行 */
+function formatQuestionStem(stem: string): string {
+  // 中文顿号选项：A、B、C、D
+  let fixed = stem.replace(/([^、\n])([A-E]、)/g, '$1\n$2')
+  // 英文点号选项：A. B. C. D.
+  fixed = fixed.replace(/([^.\n])([A-E]\.)\s*/g, '$1\n$2')
+  // 括号选项：(A) (B) (C) (D)
+  fixed = fixed.replace(/([^)\n])(\([A-E]\))/g, '$1\n$2')
+  return fixed
 }

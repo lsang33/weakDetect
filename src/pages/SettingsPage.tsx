@@ -7,6 +7,7 @@ import { cn } from '../lib/cn'
 function ApiSettings() {
   const [dashScopeKey, setDashScopeKey] = useState('')
   const [deepseekKey, setDeepseekKey] = useState('')
+  const [diagModel, setDiagModel] = useState('')
   const [showDash, setShowDash] = useState(false)
   const [showDS, setShowDS] = useState(false)
   const [msg, setMsg] = useState('')
@@ -14,12 +15,14 @@ function ApiSettings() {
   useEffect(() => {
     setDashScopeKey(localStorage.getItem('dashscope_key') || '')
     setDeepseekKey(localStorage.getItem('deepseek_key') || '')
+    setDiagModel(localStorage.getItem('diag_model') || 'qwen')
   }, [])
 
   function saveKeys() {
     localStorage.setItem('dashscope_key', dashScopeKey.trim())
     localStorage.setItem('deepseek_key', deepseekKey.trim())
-    setMsg('✅ API Key 已保存')
+    localStorage.setItem('diag_model', diagModel)
+    setMsg('✅ 已保存')
     setTimeout(() => setMsg(''), 2000)
   }
 
@@ -59,11 +62,11 @@ function ApiSettings() {
           </div>
         </div>
 
-        {/* DeepSeek Key (深度分析) */}
+        {/* DeepSeek Key */}
         <div>
           <label className="text-xs font-medium text-slate-600 mb-1 block">
-            DeepSeek API Key（深度分析）
-            <span className="text-slate-400 ml-1">待上线</span>
+            DeepSeek API Key（AI 诊断）
+            <span className="text-slate-400 ml-1">platform.deepseek.com</span>
           </label>
           <div className="relative">
             <input
@@ -72,10 +75,28 @@ function ApiSettings() {
               onChange={e => setDeepseekKey(e.target.value)}
               placeholder="sk-xxxxxxxx"
               className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-              disabled
             />
             <button onClick={() => setShowDS(!showDS)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
               {showDS ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* 模型选择 */}
+        <div>
+          <label className="text-xs font-medium text-slate-600 mb-1 block">诊断模型</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setDiagModel('qwen')}
+              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'qwen' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}
+            >
+              通义千问
+            </button>
+            <button
+              onClick={() => setDiagModel('deepseek')}
+              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'deepseek' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}
+            >
+              DeepSeek V4
             </button>
           </div>
         </div>
