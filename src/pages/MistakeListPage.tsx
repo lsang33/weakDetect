@@ -13,6 +13,7 @@ const ALL_ERROR_TYPES = Object.values(ErrorType)
 
 function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
   const navigate = useNavigate()
+  const hasAiDiagnosis = !!mistake.quickDiagnosis
 
   return (
     <div
@@ -31,6 +32,9 @@ function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
             <span className="text-xs text-slate-400">
               {ERROR_TYPE_SHORT_LABELS[mistake.errorType]}
             </span>
+            {!hasAiDiagnosis && (
+              <span className="text-xs text-purple-400">待诊断</span>
+            )}
             {mistake.mastered && (
               <span className="flex items-center gap-0.5 text-xs text-green-500">
                 <CheckCircle2 size={12} /> 已掌握
@@ -62,6 +66,7 @@ export function MistakeListPage() {
   const [filterModule, setFilterModule] = useState<ExamModule | undefined>()
   const [filterErrorType, setFilterErrorType] = useState<ErrorType | undefined>()
   const [showMastered, setShowMastered] = useState<boolean | undefined>(undefined)
+  const [filterNoDiagnosis, setFilterNoDiagnosis] = useState(false)
 
   const filtered = useMemo(() => {
     let result = filterMistakes(mistakes, {
@@ -70,14 +75,18 @@ export function MistakeListPage() {
       mastered: showMastered,
     })
 
+    if (filterNoDiagnosis) {
+      result = result.filter(m => !m.quickDiagnosis)
+    }
+
     if (search.trim()) {
       result = searchMistakes(result, search.trim())
     }
 
     return result
-  }, [mistakes, search, filterModule, filterErrorType, showMastered])
+  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis])
 
-  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined].filter(Boolean).length
+  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis].filter(Boolean).length
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -170,6 +179,12 @@ export function MistakeListPage() {
                   {opt.label}
                 </button>
               ))}
+              <button
+                onClick={() => setFilterNoDiagnosis(!filterNoDiagnosis)}
+                className={cn('px-2.5 py-1 rounded-lg text-xs', filterNoDiagnosis ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-500')}
+              >
+                待诊断
+              </button>
             </div>
           </div>
         </div>

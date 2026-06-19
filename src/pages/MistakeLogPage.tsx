@@ -11,6 +11,7 @@ import {
 } from '../lib/constants'
 import { cn } from '../lib/cn'
 import { CameraCapture } from '../components/CameraCapture'
+import { BatchConfirm } from '../components/BatchConfirm'
 import type { CreateMistakeInput } from '../models/mistake'
 import type { Difficulty } from '../models/exam'
 import type { OcrResult } from '../services/ocrService'
@@ -99,6 +100,8 @@ export function MistakeLogPage() {
   const [expandedDiags, setExpandedDiags] = useState<Set<number>>(new Set([0]))
   const [diagStyle, setDiagStyle] = useState(localStorage.getItem('diag_style') || 'compact')
   const [diagnosing, setDiagnosing] = useState(false)
+  const [batchMode, setBatchMode] = useState(false)
+  const [batchResults, setBatchResults] = useState<OcrResult[] | null>(null)
   const [diagError, setDiagError] = useState('')
   // 调试日志
   const [debugLogs, setDebugLogs] = useState<{ time: string; msg: string; type: 'info' | 'error' | 'success' }[]>([])
@@ -238,8 +241,20 @@ export function MistakeLogPage() {
             {questionType === QuestionType.MISTAKE ? '❌ 错题' : '🤔 存疑'}
           </button>
         </div>
-        {entryType === EntryType.PHOTO && (
-          <CameraCapture onResult={handleOcrResult} />
+        {entryType === EntryType.PHOTO && !batchResults && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <button onClick={() => setBatchMode(false)}
+                className={cn('px-2 py-0.5 rounded text-[10px] border', !batchMode ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-400 border-slate-200')}>单题模式</button>
+              <button onClick={() => setBatchMode(true)}
+                className={cn('px-2 py-0.5 rounded text-[10px] border', batchMode ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-400 border-slate-200')}>多题模式</button>
+              {batchMode && <span className="text-amber-500">一次提取全部题目</span>}
+            </label>
+            <CameraCapture onResult={handleOcrResult} batchMode={batchMode} onBatchResult={setBatchResults} />
+          </div>
+        )}
+        {batchResults && (
+          <BatchConfirm results={batchResults} onBack={() => setBatchResults(null)} />
         )}
       </div>
 

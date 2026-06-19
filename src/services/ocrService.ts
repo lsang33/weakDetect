@@ -41,12 +41,59 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-/** 调用通义千问 VL 提取题目信息 */
-export async function analyzeExamImage(imageFile: File, apiKey: string): Promise<OcrResult> {
+/** 调用通义千问 VL API（通用内部函数） */
+async function callVL(imageFile: File, apiKey: string, prompt: string): Promise<string> {
   const base64 = await fileToBase64(imageFile)
-  // 去掉 data:image/jpeg;base64, 前缀
   const imageData = base64.split(',')[1]
 
+  const response = await fetch(DASHSCOPE_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'qwen-vl-max',
+      input: {
+        messages: [{
+          role: 'user',
+          content: [
+            { image: `data:image/jpeg;base64,${imageData}` },
+            { text: prompt },
+          ],
+        }],
+      },
+      parameters: { max_tokens: 4000 },
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`API 调用失败: ${response.status} ${err}`)
+  }
+
+  const data = await response.json()
+  const text = data?.output?.choices?.[0]?.message?.content?.[0]?.text
+  if (!text) throw new Error(`API 返回为空: ${JSON.stringify(data)}`)
+  return text
+}
+
+/** 从 JSON 字符串中提取并解析第一个对象/数组 */
+function extractJsonArray<T>(text: string): T[] {
+  let json = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+  json = json.replace(/"([^"\\]|\\.)*"/g, (match: string) =>
+    match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t'))
+  try {
+    const parsed = JSON.parse(json)
+    return Array.isArray(parsed) ? parsed : [parsed]
+  } catch {
+    const m = json.match(/\[[\s\S]*\]/)
+    if (m) { try { return JSON.parse(m[0]) as T[] } catch { /* fall */ } }
+    const o = json.match(/\{[\s\S]*\}/)
+    if (o) { try { return [JSON.parse(o[0]) as T] } catch { /* fall */ } }
+    throw new Error(`AI 返回格式异常: ${json.slice(0, 300)}`)
+  }
+}
+
+/** 调用通义千问 VL 提取题目信息（单题） */
+export async function analyzeExamImage(imageFile: File, apiKey: string): Promise<OcrResult> {
   const prompt = `你是一位公务员考试辅导专家。请分析这道题目的图片，返回 JSON 格式（只返回 JSON，不要其他任何文字）：
 
 {
@@ -67,51 +114,10 @@ export async function analyzeExamImage(imageFile: File, apiKey: string): Promise
 - knowledgePoint 要具体到题型特征，不要笼统
 - 保持题目原文完整，包括选项内容`
 
-  const response = await fetch(DASHSCOPE_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'qwen-vl-max',
-      input: {
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { image: `data:image/jpeg;base64,${imageData}` },
-              { text: prompt },
-            ],
-          },
-        ],
-      },
-      parameters: {
-        max_tokens: 2000,
-      },
-    }),
-  })
-
-  if (!response.ok) {
-    const err = await response.text()
-    throw new Error(`API 调用失败: ${response.status} ${err}`)
-  }
-
-  const data = await response.json()
-  const text = data?.output?.choices?.[0]?.message?.content?.[0]?.text
-
-  if (!text) {
-    throw new Error(`API 返回为空: ${JSON.stringify(data)}`)
-  }
-
-  // 提取 JSON（去掉 markdown 代码块标记）
+  const text = await callVL(imageFile, apiKey, prompt)
   let json = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-
-  // 修复 JSON 字符串内未转义的控制字符
-  json = json.replace(/"([^"\\]|\\.)*"/g, (match: string) => {
-    return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
-  })
-
+  json = json.replace(/"([^"\\]|\\.)*"/g, (match: string) =>
+    match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t'))
   try {
     const result = JSON.parse(json) as OcrResult
     result.questionStem = formatQuestionStem(result.questionStem)
@@ -125,6 +131,34 @@ export async function analyzeExamImage(imageFile: File, apiKey: string): Promise
     }
     throw new Error(`AI 返回格式异常: ${json}`)
   }
+}
+
+/** 调用通义千问 VL 提取图片中所有题目（批量） */
+export async function analyzeExamImageBatch(imageFile: File, apiKey: string): Promise<OcrResult[]> {
+  const prompt = `你是一位公务员考试辅导专家。这张图片可能包含多道考试题目。请逐道提取每道题的完整信息，返回 JSON 数组（只返回 JSON，不要其他任何文字）：
+
+{
+  "questionStem": "题目完整原文，包括所有选项",
+  "module": "言语理解与表达/数量关系/判断推理/资料分析/常识判断",
+  "knowledgePoint": "具体知识点，如：排列组合-分类讨论/主旨概括-转折关系/增长率计算-基期比重",
+  "subCategory": "细分考点，如：容斥原理/工程问题/细节理解题",
+  "correctAnswer": "正确答案（单个选项字母或数值）",
+  "difficulty": 1-5的整数,
+  "judgmentSubType": "仅判断推理模块填写：图形推理/定义判断/类比推理/逻辑判断，其他模块不填",
+  "explanation": "简短解题思路（100字以内）"
+}
+
+注意：
+- 尽可能识别图片中所有题目，按顺序排列
+- 如果某道题不完整或无法识别，跳过它
+- 如果图片中只有一道题，仍然返回数组格式 [{...}]
+- 保持题干原文完整，包括所有选项
+- 如果图片有多个位置标注了答案，一一对应`
+
+  const text = await callVL(imageFile, apiKey, prompt)
+  const results = extractJsonArray<OcrResult>(text)
+  results.forEach(r => { r.questionStem = formatQuestionStem(r.questionStem) })
+  return results
 }
 
 /** 修复选项换行：确保每个 A. B. C. D. 前有换行 */

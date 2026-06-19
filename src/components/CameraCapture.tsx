@@ -2,11 +2,10 @@ import { useState, useRef } from 'react'
 import { Camera, Image, X, RefreshCw, Crop } from 'lucide-react'
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { analyzeExamImage, type OcrResult } from '../services/ocrService'
+import { analyzeExamImage, analyzeExamImageBatch, type OcrResult } from '../services/ocrService'
 
 const API_ERR = '请先在设置页填写通义千问 API Key'
 
-/** canvas 裁切 */
 function cropImage(image: HTMLImageElement, crop: CropType): Promise<File> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
@@ -26,12 +25,16 @@ function cropImage(image: HTMLImageElement, crop: CropType): Promise<File> {
   })
 }
 
-export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => void }) {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'crop' | 'analyzing' | 'done' | 'error'>('idle')
+export function CameraCapture({ onResult, batchMode, onBatchResult }: {
+  onResult: (result: OcrResult) => void
+  batchMode?: boolean
+  onBatchResult?: (results: OcrResult[]) => void
+}) {
+  const [status, setStatus] = useState<'idle' | 'crop' | 'analyzing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [imgSrc, setImgSrc] = useState('')
-  const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null)
   const [crop, setCrop] = useState<CropType>()
+  const imgRef = useRef<HTMLImageElement | null>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
 
@@ -47,29 +50,30 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
     if (!file) return
     const url = URL.createObjectURL(file)
     setImgSrc(url)
-    setStatus('loading') // 等图片加载完再显示裁切
+    setCrop({ unit: '%', width: 85, height: 65, x: 7.5, y: 0 })
+    setStatus('crop')
     setErrorMsg('')
   }
 
-  function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
-    const img = e.currentTarget
-    setImgEl(img)
-    const c = centerCrop(
-      makeAspectCrop({ unit: '%', width: 85, height: 65 }, 4 / 3, img.width, img.height),
-      img.width, img.height,
-    )
-    setCrop(c)
-    setStatus('crop') // 此时 crop 已就绪，ReactCrop 能正确渲染
-  }
-
   async function handleCrop() {
-    if (!imgEl || !crop) return
+    const img = imgRef.current
+    if (!img || !crop) return
+    // 如果图片还没加载完，等 load 事件
+    if (!img.complete) {
+      await new Promise(resolve => { img.onload = resolve; img.onerror = resolve })
+    }
     setStatus('analyzing')
     try {
-      const croppedFile = await cropImage(imgEl, crop)
-      const result = await analyzeExamImage(croppedFile, localStorage.getItem('dashscope_key')!)
-      setStatus('done')
-      onResult(result)
+      const croppedFile = await cropImage(img, crop)
+      if (batchMode && onBatchResult) {
+        const results = await analyzeExamImageBatch(croppedFile, localStorage.getItem('dashscope_key')!)
+        setStatus('idle')
+        onBatchResult(results)
+      } else {
+        const result = await analyzeExamImage(croppedFile, localStorage.getItem('dashscope_key')!)
+        setStatus('done')
+        onResult(result)
+      }
     } catch (err) {
       setStatus('error')
       setErrorMsg(err instanceof Error ? err.message : '识别失败，请重试')
@@ -77,7 +81,7 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
   }
 
   function reset() {
-    setStatus('idle'); setErrorMsg(''); setImgSrc(''); setImgEl(null); setCrop(undefined)
+    setStatus('idle'); setErrorMsg(''); setImgSrc(''); setCrop(undefined); imgRef.current = null
     if (cameraRef.current) cameraRef.current.value = ''
     if (galleryRef.current) galleryRef.current.value = ''
   }
@@ -87,7 +91,6 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
       <input ref={galleryRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
 
-      {/* ① 初始：拍照/相册 */}
       {status === 'idle' && (
         <div className="flex gap-2">
           <button onClick={() => handlePick(cameraRef)}
@@ -101,31 +104,14 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
         </div>
       )}
 
-      {/* ② 图片加载中（隐藏 img 用来触发 onLoad） */}
-      {status === 'loading' && (
-        <div className="py-8 rounded-xl bg-slate-50 border border-slate-200 text-center animate-fade-in">
-          <RefreshCw size={24} className="text-slate-400 mx-auto animate-spin mb-2" />
-          <p className="text-sm text-slate-500">加载图片...</p>
-          <img src={imgSrc} onLoad={onImageLoad} alt="" className="hidden" />
-        </div>
-      )}
-
-      {/* ③ 裁切 */}
       {status === 'crop' && imgSrc && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-fade-in">
           <div className="bg-purple-50 px-3 py-2 flex items-center gap-2 border-b border-purple-100">
             <Crop size={14} className="text-purple-500" />
             <span className="text-xs text-purple-600 font-medium">拖动边框裁切题目区域</span>
           </div>
-          <ReactCrop
-            crop={crop}
-            onChange={c => setCrop(c)}
-            aspect={undefined}
-            minWidth={40}
-            minHeight={30}
-            keepSelection
-          >
-            <img src={imgSrc} onLoad={onImageLoad} alt="" className="max-h-72 w-full object-contain bg-slate-100" />
+          <ReactCrop crop={crop} onChange={c => setCrop(c)} aspect={undefined} minWidth={40} minHeight={30} keepSelection>
+            <img ref={imgRef} src={imgSrc} alt="" className="max-h-72 w-full object-contain bg-slate-100" />
           </ReactCrop>
           <div className="p-3 flex gap-2">
             <button onClick={reset} className="flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600">重新选择</button>
@@ -137,7 +123,6 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
         </div>
       )}
 
-      {/* ③ 识别中 */}
       {status === 'analyzing' && (
         <div className="py-4 rounded-xl bg-purple-50 border border-purple-200 text-center animate-fade-in">
           <RefreshCw size={24} className="text-purple-500 mx-auto animate-spin mb-2" />
@@ -146,7 +131,6 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
         </div>
       )}
 
-      {/* ④ 完成 */}
       {status === 'done' && (
         <div className="py-3 rounded-xl bg-green-50 border border-green-200 text-center animate-fade-in">
           <p className="text-sm text-green-600 font-medium">✅ 识别完成，表单已自动填写</p>
@@ -155,7 +139,6 @@ export function CameraCapture({ onResult }: { onResult: (result: OcrResult) => v
         </div>
       )}
 
-      {/* ⑤ 错误 */}
       {status === 'error' && (
         <div className="p-3 rounded-xl bg-red-50 border border-red-200 animate-fade-in">
           <div className="flex items-start justify-between gap-2">
