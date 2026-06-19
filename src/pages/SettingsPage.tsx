@@ -8,6 +8,7 @@ function ApiSettings() {
   const [dashScopeKey, setDashScopeKey] = useState('')
   const [deepseekKey, setDeepseekKey] = useState('')
   const [diagModel, setDiagModel] = useState('')
+  const [diagStyle, setDiagStyle] = useState('')
   const [showDash, setShowDash] = useState(false)
   const [showDS, setShowDS] = useState(false)
   const [msg, setMsg] = useState('')
@@ -16,12 +17,14 @@ function ApiSettings() {
     setDashScopeKey(localStorage.getItem('dashscope_key') || '')
     setDeepseekKey(localStorage.getItem('deepseek_key') || '')
     setDiagModel(localStorage.getItem('diag_model') || 'qwen')
+    setDiagStyle(localStorage.getItem('diag_style') || 'compact')
   }, [])
 
   function saveKeys() {
     localStorage.setItem('dashscope_key', dashScopeKey.trim())
     localStorage.setItem('deepseek_key', deepseekKey.trim())
     localStorage.setItem('diag_model', diagModel)
+    localStorage.setItem('diag_style', diagStyle)
     setMsg('✅ 已保存')
     setTimeout(() => setMsg(''), 2000)
   }
@@ -86,18 +89,27 @@ function ApiSettings() {
         <div>
           <label className="text-xs font-medium text-slate-600 mb-1 block">诊断模型</label>
           <div className="flex gap-2">
-            <button
-              onClick={() => setDiagModel('qwen')}
-              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'qwen' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}
-            >
-              通义千问
-            </button>
-            <button
-              onClick={() => setDiagModel('deepseek')}
-              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'deepseek' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}
-            >
-              DeepSeek V4
-            </button>
+            <button onClick={() => setDiagModel('qwen')}
+              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'qwen' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}>通义千问</button>
+            <button onClick={() => setDiagModel('deepseek')}
+              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'deepseek' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}>DeepSeek V4</button>
+          </div>
+        </div>
+
+        {/* 风格选择 */}
+        <div>
+          <label className="text-xs font-medium text-slate-600 mb-1 block">诊断风格</label>
+          <div className="flex gap-2">
+            {[
+              { k: 'compact', label: '精炼', desc: '只写关键决策点' },
+              { k: 'detailed', label: '详细', desc: '逐空逐项辨析' },
+              { k: 'free', label: '自由', desc: 'AI 自主决定' },
+            ].map(s => (
+              <button key={s.k} onClick={() => setDiagStyle(s.k)}
+                className={'flex-1 py-1.5 rounded-lg border text-xs ' + (diagStyle === s.k ? 'bg-purple-50 text-purple-600 border-purple-300 font-medium' : 'bg-white text-slate-500 border-slate-200')}>
+                {s.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

@@ -1,3 +1,8 @@
+import compactPrompt from '../prompts/compact.txt'
+import detailedPrompt from '../prompts/detailed.txt'
+import freePrompt from '../prompts/free.txt'
+
+const STYLE_SOLUTION: Record<string, string> = { compact: compactPrompt, detailed: detailedPrompt, free: freePrompt }
 const URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation'
 
 export interface DiagnosisResult {
@@ -67,11 +72,14 @@ function deriveAnswer(solution: string, questionStem: string): string | null {
   return null
 }
 
-const STEP1_PROMPT = (m: string, q: string) =>
-  `独立完成这道${m}题并给出完整解析。
+const STEP1_PROMPT = (m: string, q: string, style: string) =>
+  `独立完成这道${m}题。
 
 ## 题目
 ${q}
+
+## 风格：
+${STYLE_SOLUTION[style] || STYLE_SOLUTION.compact}
 
 ## 输出（只返回 JSON）
 {
@@ -81,7 +89,7 @@ ${q}
   "examPoint": "考什么",
   "keyDifferentiator": "关键分辨点",
   "traps": "最有诱惑力的错误选项及原因",
-  "solution": "思考过程。选词填空格式：1.题感 2.逐空推理(用"第一空\n线索：揣摩：排除：选定："分段，不用树形符号) 3.结论。常识政策：'① 错 替换：X→Y'格式"
+  "solution": "按风格要求输出思考过程"
 }`
 
 const STEP1B_PROMPT = (m: string, q: string, correctAnswer: string) =>
@@ -99,7 +107,7 @@ const STEP2_PROMPT = (aiAnswer: string, solution: string, traps: string, correct
 正确答案=${correctAnswer}。${myAnswer ? `她的答案=${myAnswer}。` : '她没提供答案——不要猜测她的选择，分析最易选错的选项。'}
 
 输出JSON：
-{"rootCause":"${myAnswer ? '她选错的根本原因' : '最容易被选错的选项及原因'}","fix":"具体解题技巧","userErrorStep":"读题理解偏差/条件转换错误/计算错误/分类遗漏/选项辨析不足"}
+{"rootCause":"${myAnswer ? '她选错的根本原因——被哪个思维误区坑了（不是复述陷阱，是说她为什么会上当）' : '最容易被选错的选项及原因（注意和陷阱内容区分——陷阱说哪个有迷惑性，错因说她为什么被迷惑）'}","fix":"针对这道题的具体解题技巧","userErrorStep":"读题理解偏差/条件转换错误/计算错误/分类遗漏/选项辨析不足"}
 只返回JSON。`
 
 const DEFAULT_STEP1: Step1Result = {
@@ -108,9 +116,9 @@ const DEFAULT_STEP1: Step1Result = {
 
 export async function diagnoseMistake(
   questionStem: string, correctAnswer: string, myAnswer: string | undefined,
-  moduleName: string, apiKey: string,
+  moduleName: string, apiKey: string, style = 'compact',
 ): Promise<DiagnosisResult> {
-  const s1 = await callQwen(STEP1_PROMPT(moduleName, questionStem), apiKey)
+  const s1 = await callQwen(STEP1_PROMPT(moduleName, questionStem, style), apiKey)
   const step1 = parseJson<Step1Result>(s1, DEFAULT_STEP1)
 
   let { solution, traps } = step1
@@ -130,7 +138,7 @@ export async function diagnoseMistake(
 
   const s2 = await callQwen(STEP2_PROMPT(aiAnswer, solution, traps, correctAnswer, myAnswer), apiKey)
   const step2 = parseJson<{ rootCause: string; fix: string; userErrorStep: string }>(s2, {
-    rootCause: traps || '分析异常', fix: '注意辨析语境差异', userErrorStep: '未知',
+    rootCause: traps || '分析异常', fix: traps || '结合线索逐一排除', userErrorStep: '未知',
   })
 
   return {

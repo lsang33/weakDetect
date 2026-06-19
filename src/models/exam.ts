@@ -5,6 +5,7 @@ export enum ExamModule {
   JUDGMENT = 'judgment',
   DATA_ANALYSIS = 'data_analysis',
   COMMON_KNOWLEDGE = 'common_knowledge',
+  POLITICAL = 'political',
 }
 
 /** 判断推理子类型 */
@@ -45,6 +46,7 @@ export const MODULE_LABELS: Record<ExamModule, string> = {
   [ExamModule.JUDGMENT]: '判断推理',
   [ExamModule.DATA_ANALYSIS]: '资料分析',
   [ExamModule.COMMON_KNOWLEDGE]: '常识判断',
+  [ExamModule.POLITICAL]: '政治理论',
 }
 
 /** 模块短标签（用于图表等空间有限的场景） */
@@ -54,6 +56,7 @@ export const MODULE_SHORT_LABELS: Record<ExamModule, string> = {
   [ExamModule.JUDGMENT]: '判断',
   [ExamModule.DATA_ANALYSIS]: '资料',
   [ExamModule.COMMON_KNOWLEDGE]: '常识',
+  [ExamModule.POLITICAL]: '政治',
 }
 
 /** 判断推理子类型中文标签 */
@@ -87,6 +90,7 @@ export const MODULE_COLORS: Record<ExamModule, string> = {
   [ExamModule.JUDGMENT]: '#8B5CF6',
   [ExamModule.DATA_ANALYSIS]: '#F59E0B',
   [ExamModule.COMMON_KNOWLEDGE]: '#10B981',
+  [ExamModule.POLITICAL]: '#DC2626',
 }
 
 /** 错误类型颜色映射 */

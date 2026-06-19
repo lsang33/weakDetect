@@ -11,6 +11,7 @@ const pageConfig: Record<string, { title: string; subtitle?: string; showFAB: bo
   '/mistakes': { title: '错题本', showFAB: true },
   '/analytics': { title: '统计分析', showFAB: false },
   '/review': { title: '复习计划', showFAB: false },
+  '/batch': { title: '综合分析', showFAB: false },
   '/settings': { title: '设置', showFAB: false },
 }
 

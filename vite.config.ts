@@ -7,6 +7,7 @@ import { execSync } from 'child_process'
 
 export default defineConfig({
   base: '/weakDetect/',
+  server: { port: 5173, strictPort: true },
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })),
   },

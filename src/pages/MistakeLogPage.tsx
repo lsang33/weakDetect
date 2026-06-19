@@ -27,6 +27,7 @@ function mapModule(ocrModule: string): ExamModule {
   if (m.includes('判断')) return ExamModule.JUDGMENT
   if (m.includes('资料')) return ExamModule.DATA_ANALYSIS
   if (m.includes('常识')) return ExamModule.COMMON_KNOWLEDGE
+  if (m.includes('政治')) return ExamModule.POLITICAL
   return ExamModule.JUDGMENT
 }
 
@@ -95,6 +96,7 @@ export function MistakeLogPage() {
   const [diagnoses, setDiagnoses] = useState<DiagnosisResult[]>([])
   const [selectedDiag, setSelectedDiag] = useState(0)
   const [expandedDiags, setExpandedDiags] = useState<Set<number>>(new Set([0]))
+  const [diagStyle, setDiagStyle] = useState(localStorage.getItem('diag_style') || 'compact')
   const [diagnosing, setDiagnosing] = useState(false)
   const [diagError, setDiagError] = useState('')
   // 调试日志
@@ -449,6 +451,7 @@ export function MistakeLogPage() {
           >
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-purple-500">🤖 AI 诊断 #{i + 1}</span>
+              <span className="text-[10px] text-purple-300">· {({ compact: '精炼', detailed: '详细', free: '自由' })[diagStyle]}</span>
               <span className={cn(
                 'text-xs px-1.5 py-0.5 rounded-full',
                 d.aiCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -568,6 +571,20 @@ export function MistakeLogPage() {
 
       {/* 手动诊断按钮 */}
       {questionStem.trim() && correctAnswer.trim() && !diagnosing && (
+        <div className="space-y-2">
+        {/* 风格选择 */}
+        <div className="flex gap-1 justify-end">
+          {[
+            { k: 'compact', label: '精炼' },
+            { k: 'detailed', label: '详细' },
+            { k: 'free', label: '自由' },
+          ].map(s => (
+            <button key={s.k} onClick={() => { setDiagStyle(s.k); localStorage.setItem('diag_style', s.k) }}
+              className={`px-2 py-0.5 rounded text-[10px] border ${diagStyle === s.k ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-400 border-slate-200'}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
         <button
           onClick={() => {
             const modName = module ? ML[module] : '公务员考试'
@@ -580,16 +597,17 @@ export function MistakeLogPage() {
             setDiagError('')
             setDiagnosing(true)
             const modelLabel = diagModel === 'deepseek' ? 'deepseek-reasoner(思考)' : 'qwen-max(思考)'
-            addLog(`开始诊断 #${diagnoses.length + 1} [${modelLabel}] ${modName}`, 'info')
+            const styleLabel = { compact: '精炼', detailed: '详细', free: '自由' }[diagStyle] || diagStyle
+            addLog(`开始诊断 #${diagnoses.length + 1} [${modelLabel}/${styleLabel}] ${modName}`, 'info')
             const diagnose = diagModel === 'deepseek' ? deepseekDiagnose : qwenDiagnose
-            diagnose(questionStem, correctAnswer, myAnswer || undefined, modName, apiKey)
+            diagnose(questionStem, correctAnswer, myAnswer || undefined, modName, apiKey, diagStyle)
               .then(d => {
                 setDiagnoses(prev => {
                   setExpandedDiags(ex => new Set([...ex, prev.length]))
                   return [...prev, d]
                 })
                 setDiagnosing(false)
-                addLog(`诊断 #${diagnoses.length + 1} 完成 [${modelLabel}] AI答案=${d.aiAnswer} ${d.aiCorrect ? '✓' : '✗'}`, d.aiCorrect ? 'success' : 'error')
+                addLog(`诊断 #${diagnoses.length + 1} 完成 [${modelLabel}/${styleLabel}] AI答案=${d.aiAnswer} ${d.aiCorrect ? '✓' : '✗'}`, d.aiCorrect ? 'success' : 'error')
               })
               .catch(err => {
                 setDiagnosing(false)
@@ -602,6 +620,7 @@ export function MistakeLogPage() {
         >
           <Brain size={16} /> AI 诊断这道题
         </button>
+        </div>
       )}
 
       {/* 题目来源 */}

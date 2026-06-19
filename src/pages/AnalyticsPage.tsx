@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, BarChart3 } from 'lucide-react'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { WeakPointRadar } from '../components/charts/WeakPointRadar'
 import { ErrorTypePie } from '../components/charts/ErrorTypePie'
@@ -19,6 +20,7 @@ function TrendIcon({ trend }: { trend: WeakPoint['trend'] }) {
 }
 
 export function AnalyticsPage() {
+  const navigate = useNavigate()
   const analytics = useAnalytics()
 
   if (!analytics) {
@@ -55,6 +57,14 @@ export function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* 综合分析入口 */}
+      <button
+        onClick={() => navigate('/batch')}
+        className="w-full py-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-600 font-medium text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+      >
+        <BarChart3 size={18} /> AI 综合分析（跨题归类+共性弱点）
+      </button>
 
       {/* 各模块正确率雷达图 */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">

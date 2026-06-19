@@ -57,6 +57,7 @@ export interface AnalysisReport {
     persistentPatterns: string[]
     newPatterns: string[]
   }
+  moduleAnalysis?: { module: string; trend: 'improving' | 'stable' | 'declining'; note: string }[]
 }
 
 export interface WeaknessPattern {
