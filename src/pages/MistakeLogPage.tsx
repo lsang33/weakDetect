@@ -92,6 +92,7 @@ export function MistakeLogPage() {
   useEffect(() => { autoResize() }, [questionStem, autoResize])
   const [difficulty, setDifficulty] = useState<Difficulty>(3)
   const [notes, setNotes] = useState('')
+  const [showMore, setShowMore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [diagnoses, setDiagnoses] = useState<DiagnosisResult[]>([])
   const [selectedDiag, setSelectedDiag] = useState(0)
@@ -200,76 +201,58 @@ export function MistakeLogPage() {
         <ArrowLeft size={16} /> 返回
       </button>
 
-      {/* 录入方式选择 */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">录入方式</label>
+      {/* 录入方式 + 题目类型 同行 */}
+      <div className="space-y-2">
         <div className="flex gap-2">
           <button
             onClick={() => setEntryType(EntryType.MANUAL)}
             className={cn(
-              'flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all flex items-center justify-center gap-2',
+              'flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all flex items-center justify-center gap-1.5',
               entryType === EntryType.MANUAL
                 ? 'bg-blue-50 text-blue-600 border-blue-300'
                 : 'bg-white text-slate-500 border-slate-200'
             )}
           >
-            <Edit3 size={16} /> 手录
+            <Edit3 size={15} /> 手录
           </button>
           <button
             onClick={() => setEntryType(EntryType.PHOTO)}
             className={cn(
-              'flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all flex items-center justify-center gap-2',
+              'flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all flex items-center justify-center gap-1.5',
               entryType === EntryType.PHOTO
                 ? 'bg-purple-50 text-purple-600 border-purple-300'
                 : 'bg-white text-slate-400 border-slate-200'
             )}
           >
-            <Camera size={16} /> 拍照识别
+            <Camera size={15} /> 拍照
+          </button>
+          <button
+            onClick={() => setQuestionType(questionType === QuestionType.MISTAKE ? QuestionType.DOUBTFUL : QuestionType.MISTAKE)}
+            className={cn(
+              'shrink-0 px-3 py-2 rounded-xl text-xs font-medium border-2 transition-all',
+              questionType === QuestionType.MISTAKE
+                ? 'bg-red-50 text-red-600 border-red-300'
+                : 'bg-amber-50 text-amber-600 border-amber-300'
+            )}
+          >
+            {questionType === QuestionType.MISTAKE ? '❌ 错题' : '🤔 存疑'}
           </button>
         </div>
         {entryType === EntryType.PHOTO && (
-          <div className="mt-2">
-            <CameraCapture onResult={handleOcrResult} />
-          </div>
+          <CameraCapture onResult={handleOcrResult} />
         )}
-      </div>
-
-      {/* 题目类型：错题 / 存疑 */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">题目类型</label>
-        <div className="flex gap-2">
-          {([QuestionType.MISTAKE, QuestionType.DOUBTFUL] as QuestionType[]).map(qt => (
-            <button
-              key={qt}
-              onClick={() => setQuestionType(qt)}
-              className={cn(
-                'flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all',
-                questionType === qt
-                  ? qt === QuestionType.MISTAKE
-                    ? 'bg-red-50 text-red-600 border-red-300'
-                    : 'bg-amber-50 text-amber-600 border-amber-300'
-                  : 'bg-white text-slate-500 border-slate-200'
-              )}
-            >
-              {QUESTION_TYPE_LABELS[qt]}
-              <span className="block text-[10px] opacity-60 mt-0.5">
-                {qt === QuestionType.MISTAKE ? '做错的题' : '做对了但不理解'}
-              </span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* 模块选择 */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">所属模块 <span className="text-xs text-slate-400 font-normal">（AI 识别）</span></label>
-        <div className="grid grid-cols-2 gap-2">
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">所属模块 <span className="text-[10px] text-slate-400 font-normal">AI识别</span></label>
+        <div className="grid grid-cols-3 gap-1.5">
           {ALL_MODULES.map(m => (
             <button
               key={m}
               onClick={() => setModule(m)}
               className={cn(
-                'px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
+                'px-1.5 py-2 rounded-xl text-xs font-medium border-2 transition-all truncate',
                 module === m
                   ? 'text-white border-transparent'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
@@ -308,17 +291,17 @@ export function MistakeLogPage() {
 
       {/* 错误类型 */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">错误类型 <span className="text-xs text-slate-400 font-normal">（默认知识点盲区）</span></label>
-        <div className="grid grid-cols-2 gap-2">
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">错误类型</label>
+        <div className="grid grid-cols-4 gap-1.5">
           {ALL_ERROR_TYPES.map(et => (
             <button
               key={et}
               onClick={() => setErrorType(et)}
               className={cn(
-                'px-3 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
+                'px-1 py-1.5 rounded-lg text-xs font-medium border transition-all truncate',
                 errorType === et
                   ? 'text-white border-transparent'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  : 'bg-white text-slate-500 border-slate-200'
               )}
               style={errorType === et ? { backgroundColor: ERROR_TYPE_COLORS[et], borderColor: ERROR_TYPE_COLORS[et] } : undefined}
             >
@@ -328,57 +311,58 @@ export function MistakeLogPage() {
         </div>
       </div>
 
-      {/* 知识点 + 细分考点 */}
-      <div className="relative">
-        <label className="block text-sm font-medium text-slate-700 mb-2">知识点 <span className="text-xs text-slate-400 font-normal">（AI 自动填充）</span></label>
-        <input
-          type="text"
-          value={knowledgePoint}
-          onChange={e => { setKnowledgePoint(e.target.value); setShowKPSuggestions(true) }}
-          onFocus={() => setShowKPSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowKPSuggestions(false), 200)}
-          placeholder="例如：排列组合、主旨概括、增长率计算"
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
-        />
-        {showKPSuggestions && kpSuggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10">
-            {kpSuggestions.map(kp => (
-              <button
-                key={kp}
-                onMouseDown={() => { setKnowledgePoint(kp); setShowKPSuggestions(false) }}
-                className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg"
-              >
-                {kp}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="relative">
-        <label className="block text-sm font-medium text-slate-700 mb-2">细分考点 <span className="text-xs text-slate-400 font-normal">（AI 自动填充）</span></label>
-        <input
-          type="text"
-          value={subCategory}
-          onChange={e => { setSubCategory(e.target.value); setShowSubSuggestions(true) }}
-          onFocus={() => setShowSubSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSubSuggestions(false), 200)}
-          placeholder="例如：主旨概括题、工程问题"
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
-        />
-        {showSubSuggestions && subSuggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10">
-            {subSuggestions.map(sub => (
-              <button
-                key={sub}
-                onMouseDown={() => { setSubCategory(sub); setShowSubSuggestions(false) }}
-                className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg"
-              >
-                {sub}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* 知识点 + 细分考点 并排 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="relative">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">知识点 <span className="text-[10px] text-slate-400 font-normal">AI填充</span></label>
+          <input
+            type="text"
+            value={knowledgePoint}
+            onChange={e => { setKnowledgePoint(e.target.value); setShowKPSuggestions(true) }}
+            onFocus={() => setShowKPSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowKPSuggestions(false), 200)}
+            placeholder="例如：排列组合"
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+          />
+          {showKPSuggestions && kpSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10">
+              {kpSuggestions.map(kp => (
+                <button
+                  key={kp}
+                  onMouseDown={() => { setKnowledgePoint(kp); setShowKPSuggestions(false) }}
+                  className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg"
+                >
+                  {kp}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">细分考点 <span className="text-[10px] text-slate-400 font-normal">AI填充</span></label>
+          <input
+            type="text"
+            value={subCategory}
+            onChange={e => { setSubCategory(e.target.value); setShowSubSuggestions(true) }}
+            onFocus={() => setShowSubSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSubSuggestions(false), 200)}
+            placeholder="例如：主旨概括题"
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+          />
+          {showSubSuggestions && subSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10">
+              {subSuggestions.map(sub => (
+                <button
+                  key={sub}
+                  onMouseDown={() => { setSubCategory(sub); setShowSubSuggestions(false) }}
+                  className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg"
+                >
+                  {sub}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 题目原文 + 答案 */}
@@ -449,17 +433,14 @@ export function MistakeLogPage() {
             onClick={() => toggleExpand(i)}
             className={cn('w-full flex items-center justify-between px-4 py-3')}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-purple-500">🤖 AI 诊断 #{i + 1}</span>
-              <span className="text-[10px] text-purple-300">· {({ compact: '精炼', detailed: '详细', free: '自由' })[diagStyle]}</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-medium text-purple-500 shrink-0">🤖 诊断 #{i + 1}</span>
+              <span className="text-[10px] text-purple-300 shrink-0">· {({ compact: '精炼', detailed: '详细', free: '自由' })[d.style || 'compact']}</span>
               <span className={cn(
-                'text-xs px-1.5 py-0.5 rounded-full',
+                'text-[11px] px-1.5 py-0.5 rounded-full shrink-0',
                 d.aiCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
               )}>
-                答案 {d.aiAnswer} {d.aiCorrect ? '对' : '错'}
-              </span>
-              <span className="text-xs text-slate-400 truncate max-w-32">
-                {d.difficulty?.replace(/★+/g, '').trim() || d.rootCause?.slice(0, 20)}
+                {d.step1bCalled ? `初答${d.originalAiAnswer}→修正${d.aiAnswer}` : `答案 ${d.aiAnswer} 对`}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -489,13 +470,13 @@ export function MistakeLogPage() {
                     <p className="text-xs text-purple-800">{d.difficulty}</p>
                   </div>
                 )}
-                {d.examPoint && (
+                {(d.examPoint && d.examPoint !== '未知') && (
                   <div className="flex items-start gap-2">
                     <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">考点</span>
                     <p className="text-xs text-purple-800">{d.examPoint}</p>
                   </div>
                 )}
-                {d.keyDifferentiator && (
+                {(d.keyDifferentiator && d.keyDifferentiator !== '未知') && (
                   <div className="flex items-start gap-2">
                     <span className="text-[10px] text-purple-400 shrink-0 mt-0.5 w-8">关键</span>
                     <p className="text-xs text-purple-800">{d.keyDifferentiator}</p>
@@ -522,15 +503,17 @@ export function MistakeLogPage() {
                   <p className="text-sm text-slate-700">{d.traps}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-purple-200">
+              <div className="space-y-3 pt-2 border-t border-purple-200">
                 <div>
                   <p className="text-xs text-purple-400 mb-1">错因</p>
-                  <p className="text-sm text-slate-700">{d.rootCause}</p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{d.rootCause}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-purple-400 mb-1">方法</p>
-                  <p className="text-sm text-slate-700">{d.fix}</p>
-                </div>
+                {d.fix && (
+                  <div>
+                    <p className="text-xs text-purple-400 mb-1">方法</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{d.fix}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -596,18 +579,30 @@ export function MistakeLogPage() {
             }
             setDiagError('')
             setDiagnosing(true)
-            const modelLabel = diagModel === 'deepseek' ? 'deepseek-reasoner(思考)' : 'qwen-max(思考)'
+            const dsModel = localStorage.getItem('ds_model') || 'reasoner'
+            const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
+            const dsModelLabel = dsModel === 'chat' ? 'deepseek-chat(Flash)' : 'deepseek-reasoner(Pro)'
+            const modelLabel = diagModel === 'deepseek' ? dsModelLabel : 'qwen-max(思考)'
             const styleLabel = { compact: '精炼', detailed: '详细', free: '自由' }[diagStyle] || diagStyle
             addLog(`开始诊断 #${diagnoses.length + 1} [${modelLabel}/${styleLabel}] ${modName}`, 'info')
-            const diagnose = diagModel === 'deepseek' ? deepseekDiagnose : qwenDiagnose
-            diagnose(questionStem, correctAnswer, myAnswer || undefined, modName, apiKey, diagStyle)
+            const diagnosePromise = diagModel === 'deepseek'
+              ? deepseekDiagnose(questionStem, correctAnswer, myAnswer || undefined, modName, apiKey, diagStyle, dsModelName)
+              : qwenDiagnose(questionStem, correctAnswer, myAnswer || undefined, modName, apiKey, diagStyle)
+            diagnosePromise
               .then(d => {
                 setDiagnoses(prev => {
                   setExpandedDiags(ex => new Set([...ex, prev.length]))
                   return [...prev, d]
                 })
                 setDiagnosing(false)
-                addLog(`诊断 #${diagnoses.length + 1} 完成 [${modelLabel}/${styleLabel}] AI答案=${d.aiAnswer} ${d.aiCorrect ? '✓' : '✗'}`, d.aiCorrect ? 'success' : 'error')
+                // 回填 AI 输出的模块、知识点、细分考点
+                if (d.module && !module) setModule(mapModule(d.module))
+                if (d.knowledgePoint && !knowledgePoint.trim()) setKnowledgePoint(d.knowledgePoint)
+                if (d.subCategory && !subCategory.trim()) setSubCategory(d.subCategory)
+                const calls = d.step1bCalled ? '2次调用' : '1次调用'
+                addLog(`诊断 #${diagnoses.length + 1} 完成(${calls}) [${modelLabel}/${styleLabel}] AI答案=${d.aiAnswer}`, 'success')
+                if (d.rawStep1) addLog(`Step1原始(前500字): ${d.rawStep1}`, 'info')
+                if (d.rawStep1b) addLog(`Step1b原始(前500字): ${d.rawStep1b}`, 'info')
               })
               .catch(err => {
                 setDiagnosing(false)
@@ -623,45 +618,62 @@ export function MistakeLogPage() {
         </div>
       )}
 
-      {/* 题目来源 */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">题目来源</label>
-        <input
-          type="text"
-          value={source}
-          onChange={e => setSource(e.target.value)}
-          placeholder="例如：2024国考真题卷、粉笔模考第3套"
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
-        />
-      </div>
+      {/* 更多选项（折叠） */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <button
+          onClick={() => setShowMore(!showMore)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-slate-500 hover:bg-slate-50"
+        >
+          <span>更多选项</span>
+          <span className="flex items-center gap-1 text-xs text-slate-400">
+            {source.trim() && '来源 '}{notes.trim() && '备注 '}
+            {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+        </button>
+        {showMore && (
+          <div className="px-4 pb-4 space-y-4 border-t border-slate-100 pt-3">
+            {/* 题目来源 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">题目来源</label>
+              <input
+                type="text"
+                value={source}
+                onChange={e => setSource(e.target.value)}
+                placeholder="例如：2024国考真题卷、粉笔模考第3套"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+              />
+            </div>
 
-      {/* 难度 */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">难度自评：{difficulty} 分</label>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          step={1}
-          value={difficulty}
-          onChange={e => setDifficulty(Number(e.target.value) as Difficulty)}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-        />
-        <div className="flex justify-between text-xs text-slate-400 mt-1">
-          <span>很简单</span><span>较简单</span><span>中等</span><span>较难</span><span>很难</span>
-        </div>
-      </div>
+            {/* 难度 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">难度自评：{difficulty} 分</label>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={1}
+                value={difficulty}
+                onChange={e => setDifficulty(Number(e.target.value) as Difficulty)}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <span>很简单</span><span>中等</span><span>很难</span>
+              </div>
+            </div>
 
-      {/* 备注 */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">备注（可选）</label>
-        <textarea
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          placeholder="记录你的错误原因或反思..."
-          rows={3}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white resize-none"
-        />
+            {/* 备注 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">备注（可选）</label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="记录你的错误原因或反思..."
+                rows={2}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white resize-none"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 提交按钮 */}

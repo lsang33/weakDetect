@@ -1,32 +1,59 @@
 import { useState, useEffect } from 'react'
-import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save } from 'lucide-react'
+import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { db } from '../db/database'
 import { cn } from '../lib/cn'
+import { validateQwenKey } from '../services/diagnoseService'
+import { validateDeepseekKey } from '../services/deepseekService'
 
 function ApiSettings() {
   const [dashScopeKey, setDashScopeKey] = useState('')
   const [deepseekKey, setDeepseekKey] = useState('')
   const [diagModel, setDiagModel] = useState('')
   const [diagStyle, setDiagStyle] = useState('')
+  const [dsModel, setDsModel] = useState('reasoner')
   const [showDash, setShowDash] = useState(false)
   const [showDS, setShowDS] = useState(false)
   const [msg, setMsg] = useState('')
+  const [validating, setValidating] = useState(false)
+  const [dashValid, setDashValid] = useState<boolean | null>(null)
+  const [dsValid, setDSValid] = useState<boolean | null>(null)
 
   useEffect(() => {
     setDashScopeKey(localStorage.getItem('dashscope_key') || '')
     setDeepseekKey(localStorage.getItem('deepseek_key') || '')
     setDiagModel(localStorage.getItem('diag_model') || 'qwen')
     setDiagStyle(localStorage.getItem('diag_style') || 'compact')
+    setDsModel(localStorage.getItem('ds_model') || 'reasoner')
   }, [])
 
-  function saveKeys() {
-    localStorage.setItem('dashscope_key', dashScopeKey.trim())
-    localStorage.setItem('deepseek_key', deepseekKey.trim())
+  async function saveKeys() {
+    setValidating(true)
+    setMsg('')
+    setDashValid(null)
+    setDSValid(null)
+
+    const dk = dashScopeKey.trim()
+    const dsk = deepseekKey.trim()
+
+    const results = await Promise.all([
+      dk ? validateQwenKey(dk).then(ok => { setDashValid(ok); return ok }).catch(() => { setDashValid(false); return false }) : Promise.resolve(null),
+      dsk ? validateDeepseekKey(dsk).then(ok => { setDSValid(ok); return ok }).catch(() => { setDSValid(false); return false }) : Promise.resolve(null),
+    ])
+
+    localStorage.setItem('dashscope_key', dk)
+    localStorage.setItem('deepseek_key', dsk)
     localStorage.setItem('diag_model', diagModel)
     localStorage.setItem('diag_style', diagStyle)
-    setMsg('✅ 已保存')
-    setTimeout(() => setMsg(''), 2000)
+    localStorage.setItem('ds_model', dsModel)
+
+    setValidating(false)
+    const dashOk = !dk || results[0] !== false
+    const dsOk = !dsk || results[1] !== false
+    if (dashOk && dsOk) {
+      setMsg('✅ 已保存')
+      setTimeout(() => setMsg(''), 2000)
+    }
   }
 
   return (
@@ -38,9 +65,11 @@ function ApiSettings() {
         </div>
         <button
           onClick={saveKeys}
-          className="flex items-center gap-1 text-xs font-medium text-white bg-purple-500 px-3 py-1.5 rounded-lg"
+          disabled={validating}
+          className="flex items-center gap-1 text-xs font-medium text-white bg-purple-500 px-3 py-1.5 rounded-lg disabled:opacity-60"
         >
-          <Save size={12} /> 保存
+          {validating ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          {validating ? '验证中...' : '保存'}
         </button>
       </div>
 
@@ -59,9 +88,13 @@ function ApiSettings() {
               placeholder="sk-xxxxxxxx"
               className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
-            <button onClick={() => setShowDash(!showDash)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
-              {showDash ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {dashValid === true && <CheckCircle size={14} className="text-green-500" />}
+              {dashValid === false && <XCircle size={14} className="text-red-500" />}
+              <button onClick={() => setShowDash(!showDash)} className="text-slate-400">
+                {showDash ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -79,9 +112,13 @@ function ApiSettings() {
               placeholder="sk-xxxxxxxx"
               className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
-            <button onClick={() => setShowDS(!showDS)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
-              {showDS ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {dsValid === true && <CheckCircle size={14} className="text-green-500" />}
+              {dsValid === false && <XCircle size={14} className="text-red-500" />}
+              <button onClick={() => setShowDS(!showDS)} className="text-slate-400">
+                {showDS ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -92,8 +129,20 @@ function ApiSettings() {
             <button onClick={() => setDiagModel('qwen')}
               className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'qwen' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}>通义千问</button>
             <button onClick={() => setDiagModel('deepseek')}
-              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'deepseek' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}>DeepSeek V4</button>
+              className={'flex-1 py-1.5 rounded-lg text-xs font-medium border ' + (diagModel === 'deepseek' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-500 border-slate-200')}>DeepSeek</button>
           </div>
+          {diagModel === 'deepseek' && (
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => setDsModel('chat')}
+                className={'flex-1 py-1 rounded text-[11px] font-medium border ' + (dsModel === 'chat' ? 'bg-blue-50 text-blue-600 border-blue-300' : 'bg-white text-slate-400 border-slate-200')}>
+                ⚡ Flash
+              </button>
+              <button onClick={() => setDsModel('reasoner')}
+                className={'flex-1 py-1 rounded text-[11px] font-medium border ' + (dsModel === 'reasoner' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-400 border-slate-200')}>
+                🧠 Pro（思考）
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 风格选择 */}
@@ -263,7 +312,7 @@ export function SettingsPage() {
           PWA 支持离线使用，可添加到手机主屏幕。<br />
           建议定期导出数据备份。
           <br /><br />
-          <span className="text-slate-300">构建时间：{__BUILD_TIME__}</span>
+          <span className="text-slate-300">构建时间：{typeof __BUILD_TIME__ === 'string' && __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}</span>
         </p>
       </div>
     </div>

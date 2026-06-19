@@ -4,12 +4,12 @@ import type { DiagnosisResult } from './diagnoseService'
 
 const DS_URL = 'https://api.deepseek.com/v1/chat/completions'
 
-async function callDS(prompt: string, apiKey: string): Promise<string> {
+async function callDS(prompt: string, apiKey: string, model = 'deepseek-reasoner'): Promise<string> {
   const resp = await fetch(DS_URL, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'deepseek-reasoner',
+      model,
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 4000,
       temperature: 0.3,
@@ -41,14 +41,18 @@ export async function analyzeBatch(
   mistakes: MistakeRecord[],
   previousReport: { summary: string; weaknessPatterns: WeaknessPattern[] } | null,
   apiKey: string,
+  model = 'deepseek-reasoner',
 ): Promise<BatchResult> {
   const questionList = mistakes.map((m, i) => {
     const diag = m.quickDiagnosis
+    const attempts = m.improvementAttempts?.length
+      ? `\n改进追踪：${m.improvementAttempts.map(a => `「${a.method}」→${a.result === 'helped' ? '有效' : a.result === 'not_sure' ? '不确定' : '无效'}`).join('；')}`
+      : ''
     return `#${i + 1} [${m.module}] ${m.knowledgePoint}
 题目：${m.questionStem || '(缺)'}
 正确答案：${m.correctAnswer || '?'}
 ${m.myAnswer ? `她的答案：${m.myAnswer}` : ''}
-${diag ? `单题诊断：${diag.rootCause}` : ''}`
+${diag ? `单题诊断：${diag.rootCause}` : ''}${attempts}`
   }).join('\n\n---\n\n')
 
   const prevInfo = previousReport
@@ -56,6 +60,7 @@ ${diag ? `单题诊断：${diag.rootCause}` : ''}`
     : ''
 
   const prompt = `你是公务员备考老师。下面是一位考生最近的所有错题，请系统分析。
+如果题目带有"改进追踪"信息，说明她之前尝试过改进方法——请根据有效/无效的反馈调整你的建议：有效的方法继续深化，无效的方法换思路。
 
 ## 错题列表
 ${questionList}
@@ -87,7 +92,7 @@ ${prevInfo}
 }
 只返回 JSON。`
 
-  const text = await callDS(prompt, apiKey)
+  const text = await callDS(prompt, apiKey, model)
   return parseJson<BatchResult>(text, {
     summary: '分析异常，请重试',
     weaknessPatterns: [],

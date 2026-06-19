@@ -57,10 +57,12 @@ export function BatchAnalysisPage() {
     setError('')
     setLoading(true)
     try {
+      const dsModel = localStorage.getItem('ds_model') || 'reasoner'
+      const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
       const result = await analyzeBatch(stemMistakes, latestReport ? {
         summary: latestReport.summary,
         weaknessPatterns: latestReport.weaknessPatterns,
-      } : null, apiKey)
+      } : null, apiKey, dsModelName)
       const report = buildReport(result, stemMistakes, latestReport)
       await analysisReportRepository.create(report)
       window.location.reload()

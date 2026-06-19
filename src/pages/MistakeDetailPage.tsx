@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Trash2, CheckCircle2, RotateCcw, Brain, Lightbulb, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Trash2, CheckCircle2, RotateCcw, Brain, Lightbulb, PlusCircle, ChevronDown, ChevronUp, Camera } from 'lucide-react'
 import { useMistake, useMistakeActions } from '../hooks/useMistakes'
 import {
   MODULE_LABELS, MODULE_COLORS, ERROR_TYPE_LABELS, ERROR_TYPE_COLORS,
   JUDGMENT_SUB_LABELS, QUESTION_TYPE_LABELS, IMPROVEMENT_RESULT_LABELS,
 } from '../lib/constants'
 import { formatDate } from '../lib/dateUtils'
-import { ExamModule, QuestionType } from '../models/exam'
+import { ExamModule, QuestionType, EntryType } from '../models/exam'
 import type { ImprovementResult } from '../models/exam'
-import type { ImprovementAttempt } from '../models/mistake'
+import type { ImprovementAttempt, UpdateMistakeInput, MistakeRecord } from '../models/mistake'
+import { CameraCapture } from '../components/CameraCapture'
+import type { OcrResult } from '../services/ocrService'
 import { cn } from '../lib/cn'
 
 const IMPROVEMENT_RESULTS = ['helped', 'not_sure', 'no_effect'] as ImprovementResult[]
@@ -18,7 +20,8 @@ export function MistakeDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const mistake = useMistake(id)
-  const { remove, markMastered, unmarkMastered, addImprovementAttempt } = useMistakeActions()
+  const { remove, update, markMastered, unmarkMastered, addImprovementAttempt } = useMistakeActions()
+  const [showCamera, setShowCamera] = useState(false)
   const [showAddAttempt, setShowAddAttempt] = useState(false)
   const [attemptMethod, setAttemptMethod] = useState('')
   const [attemptResult, setAttemptResult] = useState<ImprovementResult>('helped')
@@ -34,6 +37,18 @@ export function MistakeDetailPage() {
       await remove(mistake!.id)
       navigate('/mistakes')
     }
+  }
+
+  async function handleOcrResult(result: OcrResult) {
+    const input: UpdateMistakeInput = {
+      entryType: EntryType.PHOTO,
+      questionStem: result.questionStem || undefined,
+      correctAnswer: result.correctAnswer || undefined,
+      knowledgePoint: result.knowledgePoint || undefined,
+      subCategory: result.subCategory || undefined,
+    }
+    await update(mistake!.id, input)
+    setShowCamera(false)
   }
 
   async function handleAddAttempt() {
@@ -90,9 +105,22 @@ export function MistakeDetailPage() {
         <p className="text-xs text-slate-400 mb-3">
           {mistake.entryType === 'photo' ? '📷 拍照录入' : '✏️ 手录'}
           {mistake.entryType === 'manual' && !mistake.questionStem && (
-            <span className="ml-2 text-amber-500">（缺少题目原文，将无法参与 AI 深度分析）</span>
+            <>
+              <span className="ml-2 text-amber-500">（缺少题目原文，将无法参与 AI 深度分析）</span>
+              {!showCamera && (
+                <button onClick={() => setShowCamera(true)}
+                  className="ml-2 text-purple-500 underline">补拍</button>
+              )}
+            </>
           )}
         </p>
+        {showCamera && (
+          <div className="mb-3">
+            <CameraCapture onResult={handleOcrResult} />
+            <button onClick={() => setShowCamera(false)}
+              className="mt-1 text-xs text-slate-400 underline">取消</button>
+          </div>
+        )}
 
         {mistake.module === ExamModule.JUDGMENT && mistake.judgmentSubType && (
           <p className="text-sm text-slate-500 mb-2">子类型：{JUDGMENT_SUB_LABELS[mistake.judgmentSubType]}</p>
