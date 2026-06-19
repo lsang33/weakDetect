@@ -55,7 +55,8 @@ const BASE_SYSTEM = `你是公务员考试解题专家。
 片段阅读/判断推理：逐项辨析`
 
 const SYSTEM_STYLES: Record<string, string> = {
-  compact: BASE_SYSTEM + `\n\n选词填空：展示做题思路，用自然语气像讲题一样。不要列结构，直接写。`,
+  compact: BASE_SYSTEM + `\n\n选词填空：展示做题思路，用自然语气像讲题一样。
+数量关系/判断推理：不能跳步骤——即使精炼也必须写出关键推理步骤（如枚举、假设、排除过程）。`,
 
   detailed: BASE_SYSTEM + `\n\n选词填空：逐空详析。
 第一空：题干线索→逐个揣摩→排除原因→选定原因
@@ -136,6 +137,11 @@ export async function deepseekDiagnose(
   }
   if (!step2.rootCause) step2.rootCause = traps || '分析异常'
   if (!step2.fix || step2.fix === '请重试') step2.fix = traps || '结合题干线索逐一排除干扰项'
+  // 三个字段一样 = step2 解析失败，用 traps 替换
+  if (step2.rootCause === step2.fix && step2.rootCause === step2.userErrorStep) {
+    step2.rootCause = traps || step2.rootCause
+    step2.fix = '逐项验证每个选项，不要凭感觉选'
+  }
 
   return {
     aiAnswer, aiCorrect,
