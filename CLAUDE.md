@@ -162,7 +162,7 @@ git -C dist push origin HEAD:main -f
 - 分析结果存储在 IndexedDB `moduleAnalyses` 表，按模块名 + 时间查询
 
 ### 调用逻辑
-- 每次点「分析」只发当前模块的错题，10-20 道，避免 token 截断
+- 每次点「分析」只发当前模块的错题，按当前时间范围筛选后的题数
 - 模型用 `deepseek-reasoner`，prompt 在 `moduleAnalysisService.ts`
 - Prompt 核心：先逐题看操作失误 → 再聚类找共性 → 输出模式
 - 每条模式必须写具体操作动作，不能写"XX能力不足"
