@@ -430,10 +430,16 @@ export function MistakeDetailPage() {
                 )}
                 <p className="text-[10px] text-purple-300">此分析由 AI 生成，仅供参考</p>
                 {hasAiAnalysis && (
-                  <button type="button" onClick={() => {
-                    update(mistake!.id, { quickDiagnosis: diagResults[selectedDiag] })
-                      .then(() => { setSavedMsg('诊断已保存'); setTimeout(() => setSavedMsg(''), 1500) })
-                      .catch(() => setSavedMsg('保存失败'))
+                  <button type="button" onClick={async () => {
+                    const current = diagResults[selectedDiag]
+                    if (!current) return
+                    try {
+                      await update(mistake!.id, { quickDiagnosis: current })
+                      setSavedMsg('✅ 诊断已保存')
+                    } catch {
+                      setSavedMsg('❌ 保存失败')
+                    }
+                    setTimeout(() => setSavedMsg(''), 2000)
                   }}
                     className="w-full py-1.5 rounded-lg border border-purple-300 text-xs text-purple-600 font-medium bg-white active:bg-purple-50">
                     保存诊断结果
@@ -613,6 +619,13 @@ export function MistakeDetailPage() {
           <Trash2 size={16} /> 删除
         </button>
       </div>
+
+      {/* 浮动 toast */}
+      {savedMsg && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg animate-fade-in">
+          {savedMsg}
+        </div>
+      )}
     </div>
   )
 }
