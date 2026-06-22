@@ -184,6 +184,7 @@ export function MistakeDetailPage() {
         className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
       >
         <ArrowLeft size={16} /> 返回
+        {savedMsg && <span className="text-green-500 text-xs ml-2">{savedMsg}</span>}
       </button>
 
       {/* 主卡片 */}
@@ -428,6 +429,16 @@ export function MistakeDetailPage() {
                   </>
                 )}
                 <p className="text-[10px] text-purple-300">此分析由 AI 生成，仅供参考</p>
+                {hasAiAnalysis && (
+                  <button onClick={async () => {
+                    await update(mistake!.id, { quickDiagnosis: diagResults[selectedDiag] })
+                    setSavedMsg('诊断已保存')
+                    setTimeout(() => setSavedMsg(''), 1500)
+                  }}
+                    className="w-full py-1.5 rounded-lg border border-purple-300 text-xs text-purple-600 font-medium bg-white active:bg-purple-50">
+                    保存诊断结果
+                  </button>
+                )}
               </div>
             )}
           </>
