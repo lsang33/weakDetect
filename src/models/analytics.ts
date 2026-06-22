@@ -96,6 +96,25 @@ export interface ModuleAnalysis {
   perQuestionAnalysis: Record<string, string>
 }
 
+/** 练习题 */
+export interface PracticeQuestion {
+  stem: string
+  options: string[]
+  correctAnswer: string
+  explanation: string
+}
+
+/** 练习会话 */
+export interface PracticeSession {
+  id: string
+  module: string
+  pattern: string
+  questions: PracticeQuestion[]
+  createdAt: Date
+  completedAt?: Date
+  results?: { questionIndex: number; userAnswer: string; correct: boolean }[]
+}
+
 /** 分析覆盖统计 */
 export interface AnalysisCoverage {
   covered: number

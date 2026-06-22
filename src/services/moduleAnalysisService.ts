@@ -69,5 +69,25 @@ ${questionDetails}
 只返回 JSON。`
 
   const text = await callDS(prompt, apiKey, model)
-  return JSON.parse(text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()) as ModuleAnalysisResult
+  const parsed = JSON.parse(text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim())
+  return { ...parsed, perQuestionAnalysis: parsed.perQuestionAnalysis || parsed.perQuestion || {} }
+}
+
+/** 根据弱点模式生成练习题 */
+export async function generatePractice(
+  moduleName: string, pattern: { pattern: string; cause: string }, apiKey: string, model: string,
+): Promise<{ stem: string; options: string[]; correctAnswer: string; explanation: string }[]> {
+  const prompt = `你是公考出题老师。有一个弱点模式需要出题练习：
+
+模块：${moduleName}
+模式：${pattern.pattern}
+说明：${pattern.cause}
+
+请针对这个弱点模式出 5 道公务员考试行测选择题（与模块类型一致），难度递进：前2道简单、中间2道中等、最后1道较难。
+只输出 JSON 数组，每道题格式：
+{"stem":"题干","options":["A. xxx","B. xxx","C. xxx","D. xxx"],"correctAnswer":"A","explanation":"解析（说明为什么选这个，以及干扰项错在哪）"}`
+
+  const text = await callDS(prompt, apiKey, model)
+  const result = JSON.parse(text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim())
+  return Array.isArray(result) ? result : []
 }
