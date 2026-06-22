@@ -112,8 +112,9 @@ export function BatchAnalysisPage() {
       addLog(`API返回成功，summary: ${result.summary?.slice(0, 50)}`)
       const report = buildReport(result, stemMistakes, latestReport)
       await analysisReportRepository.create(report)
-      addLog('报告已保存，刷新页面')
-      window.location.reload()
+      addLog('报告已保存')
+      setLoading(false)
+      setError('')
     } catch (e) {
       const msg = e instanceof Error ? e.message : '分析失败'
       addLog(`错误: ${msg}`)
