@@ -281,6 +281,7 @@ export function BatchAnalysisPage() {
           </div>
         </details>
       )}
+    </div>
     </ErrorBoundary>
   )
 }
