@@ -86,6 +86,16 @@ export interface StatsConfig {
   totalQuestionsAnswered: number
 }
 
+/** 单模块分析报告 */
+export interface ModuleAnalysis {
+  id: string
+  module: string
+  createdAt: Date
+  summary: string
+  patterns: { pattern: string; cause: string; relatedMistakeIds: string[]; suggestion: string }[]
+  perQuestionAnalysis: Record<string, string>
+}
+
 /** 分析覆盖统计 */
 export interface AnalysisCoverage {
   covered: number
