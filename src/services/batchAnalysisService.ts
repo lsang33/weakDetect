@@ -4,18 +4,22 @@ import type { DiagnosisResult } from './diagnoseService'
 
 const DS_URL = 'https://api.deepseek.com/v1/chat/completions'
 
-async function callDS(prompt: string, apiKey: string, model = 'deepseek-reasoner'): Promise<string> {
+async function callDS(prompt: string, apiKey: string, model = 'deepseek-reasoner', maxTokens = 4000): Promise<string> {
   const resp = await fetch(DS_URL, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       temperature: 0.3,
     }),
   })
-  if (!resp.ok) { const err = await resp.text(); throw new Error(`DeepSeek: ${resp.status}`) }
+  if (!resp.ok) {
+    const status = resp.status
+    if (status === 401) throw new Error('DeepSeek API Key 无效或未配置，请在设置页检查')
+    throw new Error(`API 异常(${status})，请稍后重试`)
+  }
   const data = await resp.json()
   return data?.choices?.[0]?.message?.content || ''
 }
@@ -92,14 +96,20 @@ ${prevInfo}
 }
 只返回 JSON。`
 
-  const text = await callDS(prompt, apiKey, model)
-  return parseJson<BatchResult>(text, {
-    summary: '分析异常，请重试',
+  // 每题需要约 200 tokens 输出；最少 4000，最多 16000
+  const maxTokens = Math.min(16000, Math.max(4000, mistakes.length * 200))
+  const text = await callDS(prompt, apiKey, model, maxTokens)
+  const result = parseJson<BatchResult>(text, {
+    summary: '',
     weaknessPatterns: [],
     moduleChanges: [],
     improvementPlan: { thisWeek: [], nextWeek: [], confidenceTip: '继续加油' },
     perQuestionAnalysis: {},
   })
+  if (!result.summary) {
+    throw new Error(`AI 返回解析失败。可能内容过长，建议分批分析。\n原始返回(前200字)：${text.slice(0, 200)}`)
+  }
+  return result
 }
 
 /** 构建完整报告（含覆盖率等元数据） */

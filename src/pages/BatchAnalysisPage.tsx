@@ -52,8 +52,8 @@ export function BatchAnalysisPage() {
   const canAnalyze = stemCount >= MIN_STEMS
 
   async function handleAnalyze() {
-    const apiKey = localStorage.getItem('deepseek_key') || localStorage.getItem('dashscope_key')
-    if (!apiKey) { setError('请先在设置页填写 API Key'); return }
+    const apiKey = localStorage.getItem('deepseek_key')
+    if (!apiKey) { setError('综合分析需要使用 DeepSeek API，请先在设置页填写 DeepSeek API Key'); return }
     setError('')
     setLoading(true)
     try {

@@ -21,6 +21,7 @@ export function BatchConfirm({ results, onBack }: { results: OcrResult[]; onBack
   const [questions, setQuestions] = useState(
     results.map(r => ({
       ...r,
+      myAnswer: '',
       selected: true,
       needDiag: false,
       expanded: false,
@@ -55,10 +56,10 @@ export function BatchConfirm({ results, onBack }: { results: OcrResult[]; onBack
         questionStem: q.questionStem || undefined,
         correctAnswer: q.correctAnswer || undefined,
         difficulty: (q.difficulty >= 1 && q.difficulty <= 5 ? q.difficulty : 3) as 1|2|3|4|5,
+        myAnswer: q.myAnswer || undefined,
         judgmentSubType: undefined,
         notes: undefined,
         source: undefined,
-        myAnswer: undefined,
       }
       await create(input)
     }
@@ -142,14 +143,21 @@ export function BatchConfirm({ results, onBack }: { results: OcrResult[]; onBack
               <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
                 <div>
                   <label className="text-[10px] text-slate-400">题目原文</label>
-                  <textarea value={q.questionStem} rows={2}
-                    onChange={e => updateField(i, 'questionStem', e.target.value)}
-                    className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white resize-none" />
+                  <textarea value={q.questionStem} rows={1}
+                    ref={el => { if (el) requestAnimationFrame(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' }) }}
+                    onInput={e => { updateField(i, 'questionStem', e.currentTarget.value); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px' }}
+                    className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white resize-none overflow-hidden" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] text-slate-400">正确答案</label>
                     <input value={q.correctAnswer} onChange={e => updateField(i, 'correctAnswer', e.target.value)}
+                      className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400">我的答案</label>
+                    <input value={q.myAnswer || ''} onChange={e => updateField(i, 'myAnswer', e.target.value)}
+                      placeholder="选填"
                       className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
                   </div>
                   <div>
@@ -160,10 +168,10 @@ export function BatchConfirm({ results, onBack }: { results: OcrResult[]; onBack
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-400">所属模块</label>
-                  <div className="flex gap-1 mt-0.5 flex-wrap">
+                  <div className="grid grid-cols-2 gap-1.5 mt-0.5">
                     {ALL_MODULES.map(m => (
                       <button key={m} onClick={() => updateField(i, 'module', MODULE_LABELS[m])}
-                        className={cn('px-2 py-1 rounded text-[10px] border whitespace-nowrap',
+                        className={cn('px-2 py-2 rounded text-xs font-medium border text-center',
                           mapModule(q.module) === m ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200')}
                         style={mapModule(q.module) === m ? { backgroundColor: MODULE_COLORS[m] } : undefined}>
                         {MODULE_LABELS[m]}

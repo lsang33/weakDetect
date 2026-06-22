@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, BarChart3 } from 'lucide-react'
 import { useAnalytics } from '../hooks/useAnalytics'
-import { WeakPointRadar } from '../components/charts/WeakPointRadar'
 import { ErrorTypePie } from '../components/charts/ErrorTypePie'
 import { ModuleBarChart } from '../components/charts/ModuleBarChart'
 import { TrendLineChart } from '../components/charts/TrendLineChart'
@@ -66,69 +65,63 @@ export function AnalyticsPage() {
         <BarChart3 size={18} /> AI 综合分析（跨题归类+共性弱点）
       </button>
 
-      {/* 各模块正确率雷达图 */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800 mb-2">各模块正确率</h2>
-        <WeakPointRadar moduleStats={moduleStats} />
-      </div>
-
       {/* 各模块错题分布 */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800 mb-2">各模块错题分布</h2>
+      <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+        <h2 className="text-sm font-semibold text-slate-800 mb-2 px-1">各模块错题分布</h2>
         <ModuleBarChart moduleStats={moduleStats} />
-      </div>
-
-      {/* 错误类型分布 */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800 mb-2">错误类型分布</h2>
-        <ErrorTypePie data={errorTypeBreakdown} />
       </div>
 
       {/* 每周趋势 */}
       {weeklyTrend.length > 0 && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-800 mb-2">每周趋势</h2>
+        <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+          <h2 className="text-sm font-semibold text-slate-800 mb-2 px-1">每周趋势</h2>
           <TrendLineChart data={weeklyTrend} />
         </div>
       )}
 
-      {/* 薄弱知识点 Top 10 */}
-      {topWeakPoints.length > 0 && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-800 mb-3">薄弱知识点 Top {Math.min(topWeakPoints.length, 10)}</h2>
-          <div className="space-y-2">
-            {topWeakPoints.slice(0, 10).map((wp, index) => (
-              <div key={wp.knowledgePoint} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                <span className={cn(
-                  'w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0',
-                  index < 3 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'
-                )}>
-                  {index + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded text-white shrink-0"
-                      style={{ backgroundColor: MODULE_COLORS[wp.module] }}
-                    >
-                      {MODULE_LABELS[wp.module]}
-                    </span>
-                    <p className="text-sm font-medium text-slate-800 truncate">{wp.knowledgePoint}</p>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    错误 {wp.mistakeCount} 次
-                    {wp.errorTypes.map(et => ERROR_TYPE_LABELS[et as ErrorType]).join('、')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <TrendIcon trend={wp.trend} />
-                  <span className="text-xs font-mono font-medium text-slate-500">{wp.score}分</span>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* 错误类型 + 薄弱知识点 同行 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+          <h2 className="text-sm font-semibold text-slate-800 mb-2 px-1">错误类型</h2>
+          <ErrorTypePie data={errorTypeBreakdown} />
         </div>
-      )}
+
+        {topWeakPoints.length > 0 && (
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800 mb-2 px-1">薄弱知识点</h2>
+            <div className="space-y-1">
+              {topWeakPoints.slice(0, 10).map((wp, index) => (
+                <div key={wp.knowledgePoint} className="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+                  <span className={cn(
+                    'w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center shrink-0',
+                    index < 3 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'
+                  )}>
+                    {index + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span
+                        className="text-[10px] font-medium px-1 py-0.5 rounded text-white shrink-0"
+                        style={{ backgroundColor: MODULE_COLORS[wp.module] }}
+                      >
+                        {MODULE_LABELS[wp.module]}
+                      </span>
+                      <p className="text-xs font-medium text-slate-800 truncate">{wp.knowledgePoint}</p>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {wp.mistakeCount} 次
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <TrendIcon trend={wp.trend} />
+                    <span className="text-[10px] font-mono font-medium text-slate-500">{wp.score}分</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

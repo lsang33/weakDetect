@@ -11,13 +11,14 @@ interface WeakPointRadarProps {
 }
 
 export function WeakPointRadar({ moduleStats }: WeakPointRadarProps) {
+  const totalMistakes = moduleStats.reduce((sum, ms) => sum + ms.totalMistakes, 0)
   const data = useMemo(() => {
     return moduleStats.map(ms => ({
       module: MODULE_SHORT_LABELS[ms.module],
-      accuracy: ms.accuracyRate || Math.max(0, 100 - (ms.totalMistakes > 0 ? Math.min(ms.totalMistakes * 10, 95) : 0)),
+      proportion: totalMistakes > 0 ? Math.round((ms.totalMistakes / totalMistakes) * 100) : 0,
       fullMark: 100,
     }))
-  }, [moduleStats])
+  }, [moduleStats, totalMistakes])
 
   return (
     <div className="w-full">
@@ -35,8 +36,8 @@ export function WeakPointRadar({ moduleStats }: WeakPointRadarProps) {
             axisLine={false}
           />
           <Radar
-            name="正确率"
-            dataKey="accuracy"
+            name="错题占比(%)"
+            dataKey="proportion"
             stroke="#3B82F6"
             fill="#3B82F6"
             fillOpacity={0.15}

@@ -87,10 +87,11 @@ export async function diagnose(
       { role: 'user', content: STEP1B_PROMPT(moduleName, questionStem, correctAnswer, myAnswer) },
     ], 3000)
     const fixup = parseJson<Step1Result>(s1b, { ...DEFAULT_STEP1, aiAnswer: correctAnswer })
-    solution = fixup.solution
-    traps = fixup.traps
-    userErrorCause = fixup.userErrorCause
-    improvementMethod = fixup.improvementMethod
+    // Step1b 解析失败时不覆盖 Step1 原有的有效内容
+    if (fixup.solution !== '解析异常') solution = fixup.solution
+    if (fixup.traps !== '解析异常') traps = fixup.traps
+    if (fixup.userErrorCause) userErrorCause = fixup.userErrorCause
+    if (fixup.improvementMethod) improvementMethod = fixup.improvementMethod
     aiAnswer = cleanAnswer(correctAnswer)
   }
 

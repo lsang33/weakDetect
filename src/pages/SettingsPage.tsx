@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, FileText } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { db } from '../db/database'
 import { cn } from '../lib/cn'
+import { MODULE_LABELS } from '../lib/constants'
 import { validateQwenKey } from '../services/diagnoseService'
 import { validateDeepseekKey } from '../services/deepseekService'
 
@@ -219,13 +220,46 @@ export function SettingsPage() {
             await db.reviewPlans.add(p)
           }
         }
-        setMessage(`✅ 导入成功！${data.mistakes?.length ?? 0} 条错题`)
-        window.location.reload()
+        setMessage(`✅ 导入成功！${data.mistakes?.length ?? 0} 条错题，即将刷新`)
+        setTimeout(() => window.location.reload(), 800)
       } catch {
         setMessage('❌ 文件格式错误')
       }
     }
     input.click()
+  }
+
+  async function handleExportPrint() {
+    const all = await db.mistakes.toArray()
+    const withStem = all.filter(m => m.questionStem)
+    if (withStem.length === 0) { setMessage('❌ 没有有原文的题目可导出'); setTimeout(() => setMessage(''), 2000); return }
+
+    const lines: string[] = []
+    lines.push('='.repeat(48))
+    lines.push('错题练习卷')
+    lines.push(`导出时间：${new Date().toLocaleDateString('zh-CN')}`)
+    lines.push(`共 ${withStem.length} 道题${all.length !== withStem.length ? `（另有 ${all.length - withStem.length} 道缺少原文未导出）` : ''}`)
+    lines.push('='.repeat(48))
+    lines.push('')
+
+    withStem.forEach((m, i) => {
+      const stem = m.questionStem || ''
+      lines.push(`${i + 1}. [${MODULE_LABELS[m.module]}] ${stem.replace(/\n{3,}/g, '\n\n').trim()}`)
+      lines.push('')
+    })
+
+    lines.push('='.repeat(48))
+    lines.push('（不含答案，仅供练习）')
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `错题练习卷_${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    setMessage(`✅ 已导出 ${withStem.length} 道题`)
+    setTimeout(() => setMessage(''), 2000)
   }
 
   async function handleClearAll() {
@@ -283,6 +317,13 @@ export function SettingsPage() {
         >
           <Upload size={18} className="text-green-500" />
           导入数据（JSON）
+        </button>
+        <button
+          onClick={handleExportPrint}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 border-b border-slate-50"
+        >
+          <FileText size={18} className="text-orange-500" />
+          导出错题（打印版）
         </button>
         <button
           onClick={handleClearAll}

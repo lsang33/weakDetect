@@ -59,6 +59,7 @@ function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
 }
 
 export function MistakeListPage() {
+  const navigate = useNavigate()
   const mistakes = useMistakes()
   const coverage = useCoverage()
   const [search, setSearch] = useState('')
@@ -67,6 +68,9 @@ export function MistakeListPage() {
   const [filterErrorType, setFilterErrorType] = useState<ErrorType | undefined>()
   const [showMastered, setShowMastered] = useState<boolean | undefined>(undefined)
   const [filterNoDiagnosis, setFilterNoDiagnosis] = useState(false)
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all')
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
 
   const filtered = useMemo(() => {
     let result = filterMistakes(mistakes, {
@@ -79,14 +83,37 @@ export function MistakeListPage() {
       result = result.filter(m => !m.quickDiagnosis)
     }
 
+    // 日期筛选
+    if (datePreset !== 'all') {
+      const now = new Date()
+      let start: Date
+      if (datePreset === 'today') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      } else if (datePreset === 'week') {
+        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      } else if (datePreset === 'month') {
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      } else {
+        // custom
+        start = dateStart ? new Date(dateStart) : new Date(0)
+        const end = dateEnd ? new Date(dateEnd + 'T23:59:59') : new Date(8640000000000000)
+        result = result.filter(m => {
+          const d = new Date(m.createdAt)
+          return d >= start && d <= end
+        })
+        return result
+      }
+      result = result.filter(m => new Date(m.createdAt) >= start)
+    }
+
     if (search.trim()) {
       result = searchMistakes(result, search.trim())
     }
 
     return result
-  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis])
+  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis, datePreset, dateStart, dateEnd])
 
-  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis].filter(Boolean).length
+  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis, datePreset !== 'all'].filter(Boolean).length
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -164,6 +191,35 @@ export function MistakeListPage() {
             </div>
           </div>
           <div>
+            <p className="text-xs font-medium text-slate-500 mb-2">录入时间</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { label: '全部', value: 'all' },
+                { label: '今天', value: 'today' },
+                { label: '本周', value: 'week' },
+                { label: '本月', value: 'month' },
+                { label: '自定义', value: 'custom' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setDatePreset(opt.value as typeof datePreset); if (opt.value !== 'custom') { setDateStart(''); setDateEnd('') } }}
+                  className={cn('px-2.5 py-1 rounded-lg text-xs', datePreset === opt.value ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {datePreset === 'custom' && (
+              <div className="flex gap-2 mt-2">
+                <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)}
+                  className="flex-1 px-2 py-1 rounded-lg border border-slate-200 text-xs" />
+                <span className="text-xs text-slate-400 self-center">~</span>
+                <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)}
+                  className="flex-1 px-2 py-1 rounded-lg border border-slate-200 text-xs" />
+              </div>
+            )}
+          </div>
+          <div>
             <p className="text-xs font-medium text-slate-500 mb-2">状态</p>
             <div className="flex gap-1.5">
               {[
@@ -200,15 +256,20 @@ export function MistakeListPage() {
 
       {/* AI 分析覆盖率 */}
       {coverage && coverage.total > 0 && coverage.covered < coverage.total && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 animate-fade-in">
+        <button
+          onClick={() => {
+            if (coverage.uncoveredIds.length > 0) {
+              navigate(`/mistakes/${coverage.uncoveredIds[0]}`)
+            }
+          }}
+          className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 animate-fade-in w-full text-left active:bg-amber-100"
+        >
           <AlertCircle size={14} className="shrink-0" />
           <span>
             有 {coverage.total - coverage.covered} 道错题缺少题目原文，将无法参与 AI 分析。
-            {coverage.uncoveredIds.length > 0 && (
-              <span className="ml-1 text-amber-500">点击查看详情补充原文。</span>
-            )}
+            <span className="ml-1 text-amber-500 underline">点击跳转补录原文。</span>
           </span>
-        </div>
+        </button>
       )}
 
       {/* 错题列表 */}

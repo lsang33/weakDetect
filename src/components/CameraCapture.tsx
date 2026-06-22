@@ -6,6 +6,7 @@ import { analyzeExamImage, analyzeExamImageBatch, type OcrResult } from '../serv
 
 const API_ERR = '请先在设置页填写通义千问 API Key'
 
+/** canvas 裁切 */
 function cropImage(image: HTMLImageElement, crop: CropType): Promise<File> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
@@ -56,14 +57,19 @@ export function CameraCapture({ onResult, batchMode, onBatchResult }: {
   }
 
   async function handleCrop() {
-    const img = imgRef.current
-    if (!img || !crop) return
-    // 如果图片还没加载完，等 load 事件
-    if (!img.complete) {
-      await new Promise(resolve => { img.onload = resolve; img.onerror = resolve })
-    }
+    if (!crop) return
     setStatus('analyzing')
     try {
+      // 如果图片还没加载完，用 canvas 创建临时图片加载
+      let img = imgRef.current
+      if (!img || !img.complete) {
+        img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const i = document.createElement('img')
+          i.onload = () => resolve(i)
+          i.onerror = () => reject(new Error('图片加载失败'))
+          i.src = imgSrc
+        })
+      }
       const croppedFile = await cropImage(img, crop)
       if (batchMode && onBatchResult) {
         const results = await analyzeExamImageBatch(croppedFile, localStorage.getItem('dashscope_key')!)
@@ -81,6 +87,7 @@ export function CameraCapture({ onResult, batchMode, onBatchResult }: {
   }
 
   function reset() {
+    if (imgSrc) URL.revokeObjectURL(imgSrc)
     setStatus('idle'); setErrorMsg(''); setImgSrc(''); setCrop(undefined); imgRef.current = null
     if (cameraRef.current) cameraRef.current.value = ''
     if (galleryRef.current) galleryRef.current.value = ''
@@ -127,14 +134,12 @@ export function CameraCapture({ onResult, batchMode, onBatchResult }: {
         <div className="py-4 rounded-xl bg-purple-50 border border-purple-200 text-center animate-fade-in">
           <RefreshCw size={24} className="text-purple-500 mx-auto animate-spin mb-2" />
           <p className="text-sm text-purple-600 font-medium">AI 正在识别题目...</p>
-          <p className="text-xs text-purple-400 mt-0.5">大约需要 1-2 秒</p>
         </div>
       )}
 
       {status === 'done' && (
         <div className="py-3 rounded-xl bg-green-50 border border-green-200 text-center animate-fade-in">
           <p className="text-sm text-green-600 font-medium">✅ 识别完成，表单已自动填写</p>
-          <p className="text-xs text-green-400 mt-0.5">请核对后选择来源和难度，点保存</p>
           <button onClick={reset} className="text-xs text-purple-500 mt-2 underline">重新拍照</button>
         </div>
       )}
