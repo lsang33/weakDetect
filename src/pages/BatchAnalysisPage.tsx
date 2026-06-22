@@ -16,8 +16,15 @@ function QuestionPopup({ mistake, onClose }: { mistake: any; onClose: () => void
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-h-[80vh] overflow-y-auto w-full max-w-lg p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <p className="text-xs text-slate-400 mb-2">{mistake.id?.slice(0, 8)}</p>
-        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-4">{mistake.questionStem}</p>
+        <p className="text-xs text-slate-400 mb-2">
+          {mistake.knowledgePoint && <><span className="text-purple-500">{mistake.knowledgePoint}</span> · </>}
+          {mistake.subCategory}
+        </p>
+        {mistake.questionStem ? (
+          <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-4">{mistake.questionStem}</p>
+        ) : (
+          <p className="text-sm text-amber-500 mb-4">（该题缺少题目原文）</p>
+        )}
         <div className="flex gap-4 mb-3 text-sm">
           {mistake.correctAnswer && <div><span className="text-xs text-slate-400">正确答案</span><p className="font-semibold text-green-600">{mistake.correctAnswer}</p></div>}
           {mistake.myAnswer && <div><span className="text-xs text-slate-400">你的答案</span><p className="font-semibold text-red-500">{mistake.myAnswer}</p></div>}
@@ -126,6 +133,7 @@ export function BatchAnalysisPage() {
   _cache = mistakes
 
   const [timeRange, setTimeRange] = useState<'all' | '7' | '30'>('all')
+  const [popupHistory, setPopupHistory] = useState<any>(null)
   const moduleAnalyses = useLiveQuery(() => moduleAnalysisRepository.getAll(), []) ?? []
 
   const filtered = useMemo(() => {
@@ -194,11 +202,38 @@ export function BatchAnalysisPage() {
             <Clock size={14} /> 历史分析记录 ({moduleAnalyses.length})
           </summary>
           <div className="px-4 pb-3 space-y-1">
-            {moduleAnalyses.map(r => (
-              <p key={r.id} className="text-xs text-slate-400">{formatDate(r.createdAt)} · {MODULE_LABELS[r.module as ExamModule] || r.module} — {r.summary?.slice(0, 60)}</p>
-            ))}
+            {moduleAnalyses.map(r => {
+              const label = MODULE_LABELS[r.module as ExamModule] || r.module
+              return (
+                <button key={r.id} onClick={() => setPopupHistory(r)}
+                  className="block w-full text-left text-xs text-slate-500 hover:bg-slate-100 rounded p-1">
+                  {formatDate(r.createdAt)} · {label} — {r.summary?.slice(0, 80)}
+                </button>
+              )
+            })}
           </div>
         </details>
+      )}
+
+      {/* 历史分析详情弹窗 */}
+      {popupHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setPopupHistory(null)}>
+          <div className="bg-white rounded-xl max-h-[80vh] overflow-y-auto w-full max-w-lg p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <p className="text-xs text-slate-400 mb-2">{formatDate(popupHistory.createdAt)} · {MODULE_LABELS[popupHistory.module as ExamModule] || popupHistory.module}</p>
+            <p className="text-sm text-slate-700 mb-4">{popupHistory.summary}</p>
+            {popupHistory.patterns?.map((p: any, i: number) => (
+              <div key={i} className="bg-slate-50 rounded-lg p-3 mb-2">
+                <p className="text-xs font-medium text-slate-800">{i + 1}. {p.pattern}</p>
+                <p className="text-xs text-slate-600 mt-1">{p.cause}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {p.relatedMistakeIds?.map((qid: string) => <span key={qid} className="text-[10px] px-1.5 py-0.5 rounded bg-white text-slate-500">{qid}</span>)}
+                </div>
+                {p.suggestion && <p className="text-xs text-blue-600 mt-1">→ {p.suggestion}</p>}
+              </div>
+            ))}
+            <button onClick={() => setPopupHistory(null)} className="w-full py-2 rounded-lg bg-slate-100 text-sm text-slate-600">关闭</button>
+          </div>
+        </div>
       )}
     </div>
   )

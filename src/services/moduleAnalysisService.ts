@@ -58,6 +58,7 @@ ${questionDetails}
       "pattern": "模式名称，写具体的操作描述，如'没判断感情色彩就选了近义词'，不要写'近义词辨析能力不足'",
       "cause": "结合具体题号写为什么出现这个错误（2-3句话）",
       "relatedMistakeIds": ["#1","#3"],
+      "severity": "high/medium/low（high=5题以上, medium=3-4题, low=1-2题）",
       "suggestion": "一个可执行的做题步骤，如'做选词填空先标语境褒贬，再找对应选项'"
     }
   ],
@@ -75,15 +76,27 @@ ${questionDetails}
 
 /** 根据弱点模式生成练习题 */
 export async function generatePractice(
-  moduleName: string, pattern: { pattern: string; cause: string }, apiKey: string, model: string,
+  moduleName: string,
+  pattern: { pattern: string; cause: string; relatedMistakeIds?: string[] },
+  relatedStems: string[],
+  apiKey: string, model: string,
 ): Promise<{ stem: string; options: string[]; correctAnswer: string; explanation: string }[]> {
+  const refs = relatedStems.length > 0
+    ? `\n## 用户做错的参考题目\n${relatedStems.map((s, i) => `样例${i + 1}：${s.slice(0, 200)}`).join('\n')}\n`
+    : ''
+
   const prompt = `你是公考出题老师。有一个弱点模式需要出题练习：
 
 模块：${moduleName}
 模式：${pattern.pattern}
-说明：${pattern.cause}
+说明：${pattern.cause}${refs}
 
-请针对这个弱点模式出 5 道公务员考试行测选择题（与模块类型一致），难度递进：前2道简单、中间2道中等、最后1道较难。
+## 要求
+1. 根据用户做错的参考题目风格，出 5 道难度相似的题目
+2. 前2道简单、中间2道中等、最后1道较难
+3. 每道题必须考察 ${pattern.pattern} 这个核心弱点
+4. 出题后自检：检查每道题是否确实考察该模式，如果不是则重出
+
 只输出 JSON 数组，每道题格式：
 {"stem":"题干","options":["A. xxx","B. xxx","C. xxx","D. xxx"],"correctAnswer":"A","explanation":"解析（说明为什么选这个，以及干扰项错在哪）"}`
 

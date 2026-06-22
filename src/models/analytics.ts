@@ -92,7 +92,7 @@ export interface ModuleAnalysis {
   module: string
   createdAt: Date
   summary: string
-  patterns: { pattern: string; cause: string; relatedMistakeIds: string[]; suggestion: string }[]
+  patterns: { pattern: string; cause: string; relatedMistakeIds: string[]; suggestion: string; severity?: 'high' | 'medium' | 'low' }[]
   perQuestionAnalysis: Record<string, string>
 }
 
