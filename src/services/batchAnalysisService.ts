@@ -109,18 +109,24 @@ ${prevInfo}
 }
 只返回 JSON。`
 
-  // 每题需要约 200 tokens 输出；最少 4000，最多 16000
-  const maxTokens = Math.min(16000, Math.max(4000, mistakes.length * 200))
+  // 每题需要约 150 tokens 输出；最少 8000，最多 16000
+  const maxTokens = Math.min(16000, Math.max(8000, mistakes.length * 150))
   const text = await callDS(prompt, apiKey, model, maxTokens)
-  const result = parseJson<BatchResult>(text, {
+  let result = parseJson<BatchResult>(text, {
     summary: '',
     weaknessPatterns: [],
     moduleChanges: [],
     improvementPlan: { thisWeek: [], nextWeek: [], confidenceTip: '继续加油' },
     perQuestionAnalysis: {},
   })
+  // 解析失败时尝试从文本中捞 summary
   if (!result.summary) {
-    throw new Error(`AI 返回解析失败。可能内容过长，建议分批分析。\n原始返回(前200字)：${text.slice(0, 200)}`)
+    const m = text.match(/"summary"\s*:\s*"([^"]+)"/)
+    if (m) {
+      result = { ...result, summary: m[1] }
+    } else {
+      throw new Error(`AI 返回解析失败。可能内容过长，建议分批分析。\n原始返回(前200字)：${text.slice(0, 200)}`)
+    }
   }
   return result
 }
