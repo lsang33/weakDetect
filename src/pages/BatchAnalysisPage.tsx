@@ -13,8 +13,10 @@ import type { ExamModule } from '../models/exam'
 
 const MIN_STEMS = 10
 
-function PatternCard({ p, index }: { p: WeaknessPattern; index: number }) {
+function PatternCard({ p, index, questions }: { p: WeaknessPattern; index: number; questions: Record<string, { rootCause: string; fix: string; tags?: string[] }> }) {
   const [open, setOpen] = useState(index === 0)
+  const [expandedQ, setExpandedQ] = useState<Set<string>>(new Set())
+  const qIds = p.relatedMistakeIds || []
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3">
@@ -24,14 +26,51 @@ function PatternCard({ p, index }: { p: WeaknessPattern; index: number }) {
             p.severity === 'medium' ? 'bg-amber-500 text-white' : 'bg-slate-300 text-slate-600'
           )}>{index + 1}</span>
           <span className="text-sm font-medium text-slate-800 text-left">{p.pattern}</span>
-          <span className="text-xs text-slate-400">{p.relatedMistakeIds?.length || 0}道</span>
+          <span className="text-xs text-slate-400">{qIds.length}道</span>
         </div>
         {open ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
-          <p className="text-sm text-slate-600">{p.cause}</p>
-          <p className="text-sm text-purple-600">{p.suggestion}</p>
+        <div className="px-4 pb-4 space-y-3 border-t border-slate-100 pt-3 animate-fade-in">
+          <p className="text-sm text-slate-600 leading-relaxed">{p.cause}</p>
+          {/* 关联题目列表 */}
+          {qIds.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-slate-400 font-medium">关联题目：</p>
+              {qIds.map(qid => {
+                const q = questions[qid]
+                const isExpanded = expandedQ.has(qid)
+                return (
+                  <div key={qid} className="bg-slate-50 rounded-lg overflow-hidden">
+                    <button onClick={() => {
+                      const next = new Set(expandedQ)
+                      isExpanded ? next.delete(qid) : next.add(qid)
+                      setExpandedQ(next)
+                    }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs text-left">
+                      <span>
+                        <span className="text-slate-500">{qid}</span>
+                        {q?.tags?.length ? <span className="ml-1.5 text-purple-500">[{q.tags.join('·')}]</span> : null}
+                      </span>
+                      {isExpanded ? <ChevronUp size={12} className="text-slate-400" /> : <ChevronDown size={12} className="text-slate-400" />}
+                    </button>
+                    {isExpanded && q && (
+                      <div className="px-3 pb-2 space-y-1 border-t border-slate-100 pt-1.5 text-xs text-slate-600">
+                        {q.rootCause && <p><span className="text-slate-400">错因：</span>{q.rootCause}</p>}
+                        {q.fix && <p><span className="text-slate-400">做法：</span>{q.fix}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {p.suggestion && (
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-xs text-blue-600 font-medium mb-1">改进建议</p>
+              <p className="text-sm text-slate-700">{p.suggestion}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -138,7 +177,7 @@ export function BatchAnalysisPage() {
               <h3 className="text-sm font-semibold text-slate-800 mb-2">共性弱点</h3>
               <div className="space-y-2">
                 {latestReport.weaknessPatterns.map((p, i) => (
-                  <PatternCard key={i} p={p} index={i} />
+                  <PatternCard key={i} p={p} index={i} questions={latestReport.perQuestionAnalysis || {}} />
                 ))}
               </div>
             </div>

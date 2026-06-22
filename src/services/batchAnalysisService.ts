@@ -63,8 +63,13 @@ ${diag ? `单题诊断：${diag.rootCause}` : ''}${attempts}`
     ? `\n## 上次分析\n总结：${previousReport.summary}\n发现的弱点：${JSON.stringify(previousReport.weaknessPatterns)}`
     : ''
 
-  const prompt = `你是公务员备考老师。下面是一位考生最近的所有错题，请系统分析。
-如果题目带有"改进追踪"信息，说明她之前尝试过改进方法——请根据有效/无效的反馈调整你的建议：有效的方法继续深化，无效的方法换思路。
+  const prompt = `你是一位公考备考诊断专家。下面是一位考生最近的所有错题。你的任务不是给她的知识水平贴标签，而是从题目中发现「密集可修复的错误模式」——即几道看起来不同的题，其实是同一个漏洞造成的。
+
+核心原则：
+- 不要按模块分类（常识/言语/判断），而要按「错误机制」分类
+- 优先找「修一个点能管多道题」的模式 — 比如3道题都是同一个公式忘了，而不是分散说"计算能力不足"
+- severity 取决于：这个模式覆盖多少题（high≥5，medium≥3，low<3） + 修复难度
+- cause 必须针对具体的题目写，不能写泛泛的"XX能力不足"
 
 ## 错题列表
 ${questionList}
@@ -72,26 +77,26 @@ ${prevInfo}
 
 ## 输出 JSON
 {
-  "summary": "总体评价。包括：整体状态（进步/退步/稳定）、最突出的问题、和上次相比的变化。2-4句话，有温度。",
+  "summary": "本期错题的核心发现。指出最值得优先修复的 1-2 个密集模式，以及修复后能解决多少题。2-3句话。",
   "weaknessPatterns": [
     {
-      "pattern": "共性问题的简短命名（如：条件转换能力不足）",
-      "cause": "深层原因分析——为什么会有这个模式",
+      "pattern": "简短命名（指出具体错误机制，如：'充分必要条件转换方向错误'，而不是'逻辑推理能力不足'）",
+      "cause": "指出哪几道题有同样的漏洞，共同点是什么。必须引用具体题号和错误内容。",
       "relatedMistakeIds": ["对应的题目编号#1,#5,#8等"],
       "severity": "high/medium/low",
-      "suggestion": "针对性的改进建议，要具体可执行"
+      "suggestion": "针对这个具体漏洞的修复动作。要可执行：练什么、练几道、改什么习惯。"
     }
   ],
   "moduleChanges": [
     { "module": "模块名", "trend": "improving/stable/declining", "note": "简短说明" }
   ],
   "improvementPlan": {
-    "thisWeek": ["本周重点1", "本周重点2"],
+    "thisWeek": ["本周最值得优先做的1件事", "如果有余力再做第2件事"],
     "nextWeek": ["下周重点"],
-    "confidenceTip": "一句给信心的话（她正在进步，要看到自己的变化）"
+    "confidenceTip": "一句给信心的话"
   },
   "perQuestionAnalysis": {
-    "#1": { "rootCause": "这道题真正的问题", "thinkingError": "思维偏差", "fix": "具体做法", "tags": ["标签"] }
+    "#1": { "rootCause": "这道题真正的问题", "thinkingError": "思维偏差", "fix": "具体做法", "tags": ["言语理解", "选词填空"] }
   }
 }
 只返回 JSON。`
