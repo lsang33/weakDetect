@@ -15,6 +15,7 @@ import type { OcrResult } from '../services/ocrService'
 import { diagnoseMistake as qwenDiagnose } from '../services/diagnoseService'
 import { deepseekDiagnose } from '../services/deepseekService'
 import { cn } from '../lib/cn'
+import { mistakeRepository } from '../db'
 
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 const ALL_ERROR_TYPES = Object.values(ErrorType) as ErrorType[]
@@ -59,6 +60,10 @@ export function MistakeDetailPage() {
       setLocalCorrect(mistake.correctAnswer || '')
       setLocalMy(mistake.myAnswer || '')
       setIsDirty(false)
+      // 同步已有诊断结果
+      if (mistake.quickDiagnosis && diagResults.length === 0) {
+        setDiagResults([mistake.quickDiagnosis])
+      }
     }
   }, [mistake?.id])
 
@@ -435,11 +440,17 @@ export function MistakeDetailPage() {
                     if (!current) return
                     try {
                       await update(mistake!.id, { quickDiagnosis: current })
-                      setSavedMsg('✅ 诊断已保存')
+                      // 验证：立即读回来检查
+                      const saved = await mistakeRepository.getById(mistake!.id)
+                      if (saved?.quickDiagnosis) {
+                        setSavedMsg('✅ 诊断已保存')
+                      } else {
+                        setSavedMsg('❌ 保存验证失败')
+                      }
                     } catch {
                       setSavedMsg('❌ 保存失败')
                     }
-                    setTimeout(() => setSavedMsg(''), 2000)
+                    setTimeout(() => setSavedMsg(''), 3000)
                   }}
                     className="w-full py-1.5 rounded-lg border border-purple-300 text-xs text-purple-600 font-medium bg-white active:bg-purple-50">
                     保存诊断结果
