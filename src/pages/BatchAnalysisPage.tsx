@@ -86,27 +86,38 @@ export function BatchAnalysisPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [openModules, setOpenModules] = useState(false)
+  const [debugLog, setDebugLog] = useState<string[]>([])
+
+  function addLog(msg: string) {
+    setDebugLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()} ${msg}`])
+  }
 
   const stemCount = stemMistakes.length
   const canAnalyze = stemCount >= MIN_STEMS
 
   async function handleAnalyze() {
+    addLog('开始分析...')
     const apiKey = localStorage.getItem('deepseek_key')
-    if (!apiKey) { setError('综合分析需要使用 DeepSeek API，请先在设置页填写 DeepSeek API Key'); return }
+    if (!apiKey) { addLog('失败: 无API Key'); setError('综合分析需要使用 DeepSeek API，请先在设置页填写 DeepSeek API Key'); return }
     setError('')
     setLoading(true)
     try {
       const dsModel = localStorage.getItem('ds_model') || 'reasoner'
       const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
+      addLog('调用API...')
       const result = await analyzeBatch(stemMistakes, latestReport ? {
         summary: latestReport.summary,
         weaknessPatterns: latestReport.weaknessPatterns,
       } : null, apiKey, dsModelName)
+      addLog(`API返回成功，summary: ${result.summary?.slice(0, 50)}`)
       const report = buildReport(result, stemMistakes, latestReport)
       await analysisReportRepository.create(report)
+      addLog('报告已保存，刷新页面')
       window.location.reload()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '分析失败')
+      const msg = e instanceof Error ? e.message : '分析失败'
+      addLog(`错误: ${msg}`)
+      setError(msg)
       setLoading(false)
     }
   }
@@ -242,6 +253,18 @@ export function BatchAnalysisPage() {
             </details>
           )}
         </div>
+      )}
+
+      {/* 调试日志 */}
+      {debugLog.length > 0 && (
+        <details className="bg-slate-900 rounded-xl p-3">
+          <summary className="text-xs text-slate-400 cursor-pointer">调试日志 ({debugLog.length})</summary>
+          <div className="mt-2 space-y-0.5">
+            {debugLog.map((l, i) => (
+              <p key={i} className="text-[10px] font-mono text-slate-400">{l}</p>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   )
