@@ -97,10 +97,12 @@ export function ReviewPlanPage() {
             module: item.module, pattern: item.pattern.pattern, questions: newQs, createdAt: new Date(),
           })
         }
-      } catch (e) { /* 出题失败，用已有题 */ }
+      } catch (e) { console.error('出题失败', e) }
     }
 
     if (qs.length === 0) { setGenerating(''); return }
+    // 确保每道题有 options 数组
+    qs = qs.map(q => ({ ...q, options: q.options || [] }))
     setQuestions(qs)
     setCurrentIdx(0); setSelected(''); setAnswered(false); setResults([])
     setSelectedItem(item)
@@ -126,7 +128,6 @@ export function ReviewPlanPage() {
   if (phase === 'list') {
     return (
       <div className="space-y-3 animate-fade-in pb-4">
-        <h2 className="text-sm font-semibold text-slate-800 mb-2">复习</h2>
         {practiceItems.length === 0 ? (
           <div className="text-center py-16">
             <Brain size={36} className="text-slate-300 mx-auto mb-3" />
@@ -142,9 +143,9 @@ export function ReviewPlanPage() {
                     {label}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-800 truncate">{item.pattern.pattern}</p>
+                    <p className="text-sm text-slate-800 line-clamp-2">{item.pattern.pattern}</p>
                     {item.prevSession?.completedAt && (
-                      <p className="text-xs text-slate-400 truncate">
+                      <p className="text-xs text-slate-400">
                         上次 {formatDate(item.prevSession.completedAt)}
                         {item.prevSession.results?.length > 0 && ` · ${Math.round(item.prevSession.results.filter((r: any) => r.correct).length / item.prevSession.results.length * 100)}%`}
                       </p>
