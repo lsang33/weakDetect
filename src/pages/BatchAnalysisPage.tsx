@@ -10,14 +10,40 @@ import { cn } from '../lib/cn'
 
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 
-function ModuleCard({ module, label, color, count, analyzed }: {
+/** 题目弹窗 */
+function QuestionPopup({ mistake, onClose }: { mistake: any; onClose: () => void }) {
+  if (!mistake) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-h-[80vh] overflow-y-auto w-full max-w-lg p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+        <p className="text-xs text-slate-400 mb-2">{mistake.id?.slice(0, 8)}</p>
+        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-4">{mistake.questionStem}</p>
+        <div className="flex gap-4 mb-3 text-sm">
+          {mistake.correctAnswer && <div><span className="text-xs text-slate-400">正确答案</span><p className="font-semibold text-green-600">{mistake.correctAnswer}</p></div>}
+          {mistake.myAnswer && <div><span className="text-xs text-slate-400">你的答案</span><p className="font-semibold text-red-500">{mistake.myAnswer}</p></div>}
+        </div>
+        {mistake.quickDiagnosis?.rootCause && <p className="text-xs text-purple-600"><span className="text-slate-400">错因：</span>{mistake.quickDiagnosis.rootCause}</p>}
+        <button onClick={onClose} className="mt-4 w-full py-2 rounded-lg bg-slate-100 text-sm text-slate-600">关闭</button>
+      </div>
+    </div>
+  )
+}
+
+function ModuleCard({ module, label, color, count, analyzed, mistakes }: {
   module: string; label: string; color: string; count: number
   analyzed: { summary: string; patterns: any[]; perQuestionAnalysis: Record<string, string> } | null
+  mistakes: any[]
 }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState(analyzed)
   const [error, setError] = useState('')
+  const [popupMistake, setPopupMistake] = useState<any>(null)
+
+  function getMistake(qid: string) {
+    const idx = parseInt(qid.replace('#', '')) - 1
+    return mistakes[idx]
+  }
 
   async function handleAnalyze() {
     const apiKey = localStorage.getItem('deepseek_key')
@@ -52,6 +78,7 @@ function ModuleCard({ module, label, color, count, analyzed }: {
         </div>
       </div>
 
+      {popupMistake && <QuestionPopup mistake={popupMistake} onClose={() => setPopupMistake(null)} />}
       {analyzing && <p className="px-4 pb-3 text-xs text-purple-400 animate-pulse">分析中...</p>}
       {error && <p className="px-4 pb-3 text-xs text-red-500">{error}</p>}
 
@@ -62,7 +89,11 @@ function ModuleCard({ module, label, color, count, analyzed }: {
             <div key={i} className="bg-slate-50 rounded-lg p-3 space-y-1.5">
               <p className="text-xs font-medium text-slate-800">{i + 1}. {p.pattern}（{p.relatedMistakeIds.length}道）</p>
               <p className="text-xs text-slate-600">{p.cause}</p>
-              <div className="flex flex-wrap gap-1">{p.relatedMistakeIds.map((qid: string) => <span key={qid} className="text-[10px] px-1.5 py-0.5 rounded bg-white text-slate-500">{qid}</span>)}</div>
+              <div className="flex flex-wrap gap-1">{p.relatedMistakeIds.map((qid: string) => {
+                const m = getMistake(qid)
+                return <button key={qid} onClick={() => m && setPopupMistake(m)}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-white text-slate-500 hover:bg-purple-50 hover:text-purple-600 cursor-pointer">{qid}</button>
+              })}</div>
               {p.suggestion && <p className="text-xs text-blue-600">→ {p.suggestion}</p>}
             </div>
           ))}
@@ -70,9 +101,15 @@ function ModuleCard({ module, label, color, count, analyzed }: {
             <details>
               <summary className="text-xs text-slate-400 cursor-pointer">逐题分析 ({Object.keys(result.perQuestionAnalysis).length})</summary>
               <div className="mt-2 space-y-1">
-                {Object.entries(result.perQuestionAnalysis).map(([qid, txt]) => (
-                  <p key={qid} className="text-xs text-slate-500"><span className="text-slate-400">{qid}</span> {txt}</p>
-                ))}
+                {Object.entries(result.perQuestionAnalysis).map(([qid, txt]) => {
+                  const m = getMistake(qid)
+                  return <button key={qid} onClick={() => m && setPopupMistake(m)}
+                    className="block w-full text-left text-xs text-slate-500 hover:bg-slate-100 rounded p-1 -mx-1">
+                    <span className="text-slate-400">{qid}</span>
+                    {m && <span className="text-purple-400"> [{m.knowledgePoint || m.subCategory}] </span>}
+                    {txt}
+                  </button>
+                })}
               </div>
             </details>
           )}
@@ -144,6 +181,7 @@ export function BatchAnalysisPage() {
               color={MODULE_COLORS[m]}
               count={stems.length}
               analyzed={data.analyzed}
+              mistakes={data.mistakes}
             />
           )
         })}
