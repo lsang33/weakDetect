@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, BookOpen, Target, Award } from 'lucide-react'
 import { useMistakes, useActiveMistakes } from '../hooks/useMistakes'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { MODULE_LABELS, MODULE_COLORS, ERROR_TYPE_SHORT_LABELS } from '../lib/constants'
 import { formatRelative } from '../lib/dateUtils'
+import { db } from '../db/database'
 import type { ExamModule } from '../models/exam'
 import type { MistakeRecord } from '../models/mistake'
 
@@ -61,6 +63,35 @@ export function DashboardPage() {
   const activeMistakes = useActiveMistakes()
   const analytics = useAnalytics()
 
+  const [autoMsg, setAutoMsg] = useState('')
+
+  // 自动备份：每天首次打开时触发
+  useEffect(() => {
+    const lastBackup = localStorage.getItem('lastAutoBackup')
+    const today = new Date().toISOString().slice(0, 10)
+    if (lastBackup !== today && mistakes.length >= 3) {
+      // 延迟 1 秒执行，不阻塞渲染
+      const timer = setTimeout(async () => {
+        try {
+          const data = await db.mistakes.toArray()
+          const plans = await db.reviewPlans.toArray()
+          const json = JSON.stringify({ mistakes: data, reviewPlans: plans }, null, 2)
+          const blob = new Blob([json], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `上岸_自动备份_${today}.json`
+          a.click()
+          URL.revokeObjectURL(url)
+          localStorage.setItem('lastAutoBackup', today)
+          setAutoMsg(`已自动备份 ${data.length} 道错题到下载目录`)
+          setTimeout(() => setAutoMsg(''), 4000)
+        } catch { /* 静默失败，不影响使用 */ }
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [mistakes.length])
+
   const totalMistakes = mistakes.length
   const masteredCount = mistakes.filter(m => m.mastered).length
   const masteredRate = totalMistakes > 0 ? Math.round((masteredCount / totalMistakes) * 100) : 0
@@ -71,7 +102,7 @@ export function DashboardPage() {
     moduleDistribution[m.module] = (moduleDistribution[m.module] || 0) + 1
   }
 
-  const recentMistakes = mistakes.slice(0, 5)
+  const recentMistakes = mistakes  // 显示全部，不做限制
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -106,6 +137,13 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 自动备份提示 */}
+      {autoMsg && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg animate-fade-in">
+          {autoMsg}
         </div>
       )}
 
