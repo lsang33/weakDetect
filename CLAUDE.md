@@ -104,11 +104,11 @@ weakDetect 是一个**独立的 git 仓库**，remote 指向 `github.com:lsang33
   dist/ → 独立 git，推送 main 分支 → GitHub Pages
 ```
 
-### 源码推送
+### 源码推送（master）
 
 ```bash
 git add .
-git commit -m "描述"
+git commit -m "改了什么"
 git push origin master
 ```
 
@@ -153,9 +153,34 @@ git -C dist push origin HEAD:main -f
 
 错题列表页顶部会提示：有多少道题缺少题目原文（无法参与 AI 分析）。详情页可补录原文。
 
+## 综合分析页面规则（BatchAnalysisPage）
+
+### 页面的工作方式
+- 按模块分析，每个模块独立调一次 DeepSeek API
+- 顶部有时间范围筛选（全部 / 近7天 / 近30天），基于 `createdAt` 过滤
+- 每个模块显示有原文的错题数（`questionStem` 不为空），少于 3 道不展示分析入口
+- 分析结果存储在 IndexedDB `moduleAnalyses` 表，按模块名 + 时间查询
+
+### 调用逻辑
+- 每次点「分析」只发当前模块的错题，10-20 道，避免 token 截断
+- 模型用 `deepseek-reasoner`，prompt 在 `moduleAnalysisService.ts`
+- Prompt 核心：先逐题看操作失误 → 再聚类找共性 → 输出模式
+- 每条模式必须写具体操作动作，不能写"XX能力不足"
+- `perQuestion` 字段每道题一句话根因
+- 分析完成后自动保存到 IndexedDB，不刷新页面，`useLiveQuery` 响应式更新
+
+### 用户交互
+- 模块卡片可展开查看分析结果（模式 + 关联题号 + 逐题分析）
+- 关联题号（#1、#3 等）和逐题分析行点击弹出题目详情弹窗
+- 弹窗显示知识点标签、题目原文、正确答案、你的答案、错因
+- 历史记录列表可点击，弹出旧的分析报告详情
+- 历史报告的题号不可点击（与当前数据不对应）
+
+### 注意事项
+- 分析期间用户可以切换到其他页面，请求在后台继续运行
+- 切页面再回来时 `useLiveQuery` 自动获取最新分析结果
+- 缺少原文的题不参与分析，弹窗里提示"该题缺少题目原文"
+
 ## 后续计划
 
-- [ ] 拍照 OCR（通义千问 VL）
-- [ ] AI 深度诊断（DeepSeek V4）
-- [ ] 跨题归类分析
 - [ ] 改进效果追踪反馈闭环
