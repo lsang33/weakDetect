@@ -430,10 +430,10 @@ export function MistakeDetailPage() {
                 )}
                 <p className="text-[10px] text-purple-300">此分析由 AI 生成，仅供参考</p>
                 {hasAiAnalysis && (
-                  <button onClick={async () => {
-                    await update(mistake!.id, { quickDiagnosis: diagResults[selectedDiag] })
-                    setSavedMsg('诊断已保存')
-                    setTimeout(() => setSavedMsg(''), 1500)
+                  <button type="button" onClick={() => {
+                    update(mistake!.id, { quickDiagnosis: diagResults[selectedDiag] })
+                      .then(() => { setSavedMsg('诊断已保存'); setTimeout(() => setSavedMsg(''), 1500) })
+                      .catch(() => setSavedMsg('保存失败'))
                   }}
                     className="w-full py-1.5 rounded-lg border border-purple-300 text-xs text-purple-600 font-medium bg-white active:bg-purple-50">
                     保存诊断结果
