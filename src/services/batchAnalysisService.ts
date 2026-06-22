@@ -94,28 +94,28 @@ ${diag ? `单题诊断：${diag.rootCause}` : ''}${attempts}`
 ${questionList}
 ${prevInfo}
 
+## 输出要求
+- 输出必须完整可用的JSON
+- weakessPatterns 至少3个，覆盖尽可能多的错题
+- 每个模式 keep it concise：pattern 15字以内，cause 2句话，suggestion 3句话以内
+- 不需要 perQuestionAnalysis 和 moduleChanges
+
 ## 输出 JSON
 {
-  "summary": "本期错题的核心发现。指出最值得优先修复的 1-2 个密集模式，以及修复后能解决多少题。2-3句话。",
+  "summary": "本期错题的核心发现。一句话指出最值得优先修复的1-2个模式。",
   "weaknessPatterns": [
     {
-      "pattern": "具体错误机制命名（如：'充分必要条件转换方向错误'），不能是'XX能力不足'",
-      "cause": "指出哪几道题有同样的具体错误，共同的操作失误是什么。必须引用题号。",
-      "relatedMistakeIds": ["对应的题目编号#1,#5,#8等"],
+      "pattern": "具体错误机制（15字以内）",
+      "cause": "哪几道题有同样错误，共同操作失误是什么（2句话）。",
+      "relatedMistakeIds": ["#1","#5"],
       "severity": "high/medium/low",
-      "suggestion": "针对这个具体漏洞的修复动作：练什么、练几道、改什么做题步骤。"
+      "suggestion": "针对这个漏洞的修复动作（3句话以内）。"
     }
   ],
-  "moduleChanges": [
-    { "module": "模块名", "trend": "improving/stable/declining", "note": "简短说明" }
-  ],
   "improvementPlan": {
-    "thisWeek": ["本周最值得优先做的1件事", "如果有余力再做第2件事"],
+    "thisWeek": ["本周最值得优先做的1件事"],
     "nextWeek": ["下周重点"],
-    "confidenceTip": "一句给信心的话"
-  },
-  "perQuestionAnalysis": {
-    "#1": { "rootCause": "这道题真正的问题", "thinkingError": "思维偏差", "fix": "具体做法", "tags": ["言语理解", "选词填空"] }
+    "confidenceTip": "一句话"
   }
 }
 只返回 JSON。`
