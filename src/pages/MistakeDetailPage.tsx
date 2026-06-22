@@ -45,6 +45,23 @@ export function MistakeDetailPage() {
   const [diagResults, setDiagResults] = useState<QuickDiagnosis[]>(mistake?.quickDiagnosis ? [mistake.quickDiagnosis] : [])
   const [selectedDiag, setSelectedDiag] = useState(0)
 
+  // 离开确认 — 必须在 early return 之前
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => { if (isDirty) { e.preventDefault(); e.returnValue = '' } }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  // 同步本地状态 — 必须在 early return 之前
+  useEffect(() => {
+    if (mistake) {
+      setLocalStem(mistake.questionStem || '')
+      setLocalCorrect(mistake.correctAnswer || '')
+      setLocalMy(mistake.myAnswer || '')
+      setIsDirty(false)
+    }
+  }, [mistake?.id])
+
   /** 把 DiagnosisResult 转为 QuickDiagnosis */
   function toQuickDiag(result: any): QuickDiagnosis {
     return {
@@ -111,12 +128,7 @@ export function MistakeDetailPage() {
     setTimeout(() => setSavedMsg(''), 1500)
   }
 
-  // 离开确认
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (isDirty) { e.preventDefault(); e.returnValue = '' } }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [isDirty])
+  function markDirty() { if (!isDirty) setIsDirty(true) }
 
   function handleBack() {
     if (isDirty) {
@@ -124,17 +136,6 @@ export function MistakeDetailPage() {
     }
     navigate(-1)
   }
-
-  useEffect(() => {
-    if (mistake) {
-      setLocalStem(mistake.questionStem || '')
-      setLocalCorrect(mistake.correctAnswer || '')
-      setLocalMy(mistake.myAnswer || '')
-      setIsDirty(false)
-    }
-  }, [mistake?.id])
-
-  function markDirty() { if (!isDirty) setIsDirty(true) }
 
   async function handleDelete() {
     if (window.confirm('确定删除这道错题吗？')) {
