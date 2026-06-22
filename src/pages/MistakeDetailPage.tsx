@@ -94,8 +94,13 @@ export function MistakeDetailPage() {
         ? await deepseekDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
         : await qwenDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)
       const diag = toQuickDiag(result)
-      setDiagResults(prev => [...prev, diag])
-      setSelectedDiag(diagResults.length)  // 用调用前的长度作为新索引
+      setDiagResults(prev => {
+        const next = [...prev, diag]
+        // 自动保存到数据库
+        update(mistake!.id, { quickDiagnosis: diag })
+        return next
+      })
+      setSelectedDiag(diagResults.length)
       setExpandAi(true)
     } catch (err) {
       setDiagError(err instanceof Error ? err.message : '诊断失败')
@@ -317,20 +322,32 @@ export function MistakeDetailPage() {
               onClick={() => setEditingStem(true)}>{localStem}</p>
           )}
         </div>
-        <div className="flex gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-slate-400 block mb-0.5">正确答案</label>
             <input value={localCorrect}
-              onChange={e => { setLocalCorrect(e.target.value); markDirty() }}
+              onChange={e => { setLocalCorrect(e.target.value.toUpperCase()); markDirty() }}
               placeholder="如：C"
-              className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500/20" />
+              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500/20" />
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {['A','B','C','D','E','对','错'].map(ch => (
+                <button key={ch} onClick={() => { setLocalCorrect(ch); markDirty() }}
+                  className={'px-1.5 py-0.5 rounded text-[10px] border ' + (localCorrect === ch ? 'bg-green-500 text-white border-green-500' : 'text-slate-500 border-slate-200')}>{ch}</button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="text-xs text-slate-400 block mb-0.5">我的答案</label>
             <input value={localMy}
-              onChange={e => { setLocalMy(e.target.value); markDirty() }}
+              onChange={e => { setLocalMy(e.target.value.toUpperCase()); markDirty() }}
               placeholder="如：B"
-              className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
+              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {['A','B','C','D','E','对','错'].map(ch => (
+                <button key={ch} onClick={() => { setLocalMy(ch); markDirty() }}
+                  className={'px-1.5 py-0.5 rounded text-[10px] border ' + (localMy === ch ? 'bg-red-500 text-white border-red-500' : 'text-slate-500 border-slate-200')}>{ch}</button>
+              ))}
+            </div>
           </div>
         </div>
         {isDirty && (
