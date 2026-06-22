@@ -5,7 +5,10 @@ import type { DiagnosisResult } from './diagnoseService'
 const DS_URL = 'https://api.deepseek.com/v1/chat/completions'
 
 async function callDS(prompt: string, apiKey: string, model = 'deepseek-reasoner', maxTokens = 4000): Promise<string> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 180000) // 3 分钟超时
   const resp = await fetch(DS_URL, {
+    signal: controller.signal,
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -15,13 +18,20 @@ async function callDS(prompt: string, apiKey: string, model = 'deepseek-reasoner
       temperature: 0.3,
     }),
   })
+  clearTimeout(timer)
   if (!resp.ok) {
-    const status = resp.status
-    if (status === 401) throw new Error('DeepSeek API Key 无效或未配置，请在设置页检查')
-    throw new Error(`API 异常(${status})，请稍后重试`)
+    const errText = await resp.text()
+    if (resp.status === 401) throw new Error('DeepSeek API Key 无效或未配置，请在设置页检查')
+    throw new Error(`API 错误(${resp.status}): ${errText.slice(0, 200)}`)
   }
   const data = await resp.json()
-  return data?.choices?.[0]?.message?.content || ''
+  const content = data?.choices?.[0]?.message?.content
+  if (!content) {
+    // 调试：输出完整响应结构
+    const dump = JSON.stringify(data).slice(0, 500)
+    throw new Error(`AI 返回内容为空。响应结构：${dump}`)
+  }
+  return content.trim()
 }
 
 function parseJson<T>(text: string, fallback: T): T {
@@ -110,8 +120,8 @@ ${prevInfo}
 }
 只返回 JSON。`
 
-  // 每题需要约 150 tokens 输出；最少 8000，最多 16000
-  const maxTokens = Math.min(16000, Math.max(8000, mistakes.length * 150))
+  // 每题需要约 150 tokens 输出；最少 8000，最多 32000
+  const maxTokens = Math.min(32000, Math.max(8000, mistakes.length * 150))
   const text = await callDS(prompt, apiKey, model, maxTokens)
   let result = parseJson<BatchResult>(text, {
     summary: '',
