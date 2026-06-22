@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, RefreshCw, ChevronDown, ChevronUp, AlertCircle, Clock } from 'lucide-react'
 import { useMistakes, useMistakesWithStems } from '../hooks/useMistakes'
@@ -77,6 +77,19 @@ function PatternCard({ p, index, questions }: { p: WeaknessPattern; index: numbe
   )
 }
 
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: string | null}> {
+  state = { error: null as string | null }
+  static getDerivedStateFromError(e: any) { return { error: e?.message || String(e) } }
+  render() {
+    if (this.state.error) return <div className="bg-red-50 rounded-xl p-4 border border-red-200 text-sm text-red-600 m-4">
+      <p className="font-semibold mb-1">页面异常</p>
+      <p>{this.state.error}</p>
+      <button onClick={() => window.location.reload()} className="mt-2 underline">刷新页面</button>
+    </div>
+    return this.props.children
+  }
+}
+
 export function BatchAnalysisPage() {
   const navigate = useNavigate()
   const mistakes = useMistakes()
@@ -124,6 +137,7 @@ export function BatchAnalysisPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="space-y-4 animate-fade-in pb-4">
       {/* 状态区 */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
@@ -267,6 +281,6 @@ export function BatchAnalysisPage() {
           </div>
         </details>
       )}
-    </div>
+    </ErrorBoundary>
   )
 }
