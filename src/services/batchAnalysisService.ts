@@ -52,8 +52,9 @@ export async function analyzeBatch(
     const attempts = m.improvementAttempts?.length
       ? `\n改进追踪：${m.improvementAttempts.map(a => `「${a.method}」→${a.result === 'helped' ? '有效' : a.result === 'not_sure' ? '不确定' : '无效'}`).join('；')}`
       : ''
+    const stem = (m.questionStem || '').length > 300 ? (m.questionStem || '').slice(0, 300) + '...' : (m.questionStem || '(缺)')
     return `#${i + 1} [${m.module}] ${m.knowledgePoint}
-题目：${m.questionStem || '(缺)'}
+题干摘要：${stem}
 正确答案：${m.correctAnswer || '?'}
 ${m.myAnswer ? `她的答案：${m.myAnswer}` : ''}
 ${diag ? `单题诊断：${diag.rootCause}` : ''}${attempts}`
