@@ -90,51 +90,50 @@ npm run build      # 生产构建 → dist/
 npm run preview    # 预览构建结果
 ```
 
-## 部署
+## Git 工作流
 
-### 部署到 GitHub Pages（推荐，免费）
+### 仓库结构
+
+weakDetect 是一个**独立的 git 仓库**，remote 指向 `github.com:lsang33/weakDetect.git`。
 
 ```bash
-# 1. 在 github.com 创建仓库 weakDetect
+# 源码分支（本地主要工作分支）
+  master → 推送源码到 GitHub
 
-# 2. 构建
-npm run build
-
-# 3. 推送 dist 到 GitHub
-cd dist
-git init
-git checkout -b main
-git add .
-git commit -m "deploy"
-git remote add origin https://github.com/你的GitHub用户名/weakDetect.git
-git push -f origin main
-
-# 4. 开启 GitHub Pages
-#    Settings → Pages → Source: Deploy from a branch
-#    Branch: main, / (root) → Save
+# 部署分支（dist 子目录独立仓库）
+  dist/ → 独立 git，推送 main 分支 → GitHub Pages
 ```
 
-**SPA 路由说明**：每次 `npm run build` 会自动生成 `404.html`（复制自 `index.html`），这样 React Router 能处理所有路径。
+### 源码推送
 
-**访问地址**：`https://你的用户名.github.io/weakDetect`
+```bash
+git add .
+git commit -m "描述"
+git push origin master
+```
 
-### 后续更新
+### 部署到 GitHub Pages
 
 ```bash
 npm run build
-cd dist
-git add .
-git commit -m "update"
-git push
+git -C dist add .
+git -C dist commit -m "deploy"
+git -C dist push origin HEAD:main -f
 ```
+
+**访问地址**：`https://lsang33.github.io/weakDetect`
+
+**SPA 路由说明**：每次 `npm run build` 会自动生成 `404.html`，React Router 能处理所有路径。
+
+### 历史清理
+
+如果需要清理 git 历史（如误提交大文件），用 `git filter-branch` 或 `git subtree split` 处理。
 
 ### PWA 安装
 
 部署后：
 - Android：Chrome 打开 → 底部弹窗「添加到主屏幕」
 - iPhone：Safari 打开 → 分享按钮 → 「添加到主屏幕」
-
-安装后全屏运行，无浏览器地址栏和工具栏。
 
 ## 数据结构说明
 
