@@ -181,6 +181,48 @@ git -C dist push origin HEAD:main -f
 - 切页面再回来时 `useLiveQuery` 自动获取最新分析结果
 - 缺少原文的题不参与分析，弹窗里提示"该题缺少题目原文"
 
+## 复习页面规则（ReviewPlanPage）
+
+### 页面结构
+- 三个状态：`list`（弱点列表）→ `chooseMode`（练习选择）→ `practice`（做题）→ `result`（结果）
+- 数据来源：`moduleAnalysisRepository` 的分析结果，提取每个模式的 `pattern` 字段作为练习项
+- 练习项按 `severity` 排序（high → medium → low）
+
+### 列表页（list）
+- 顶部有模块筛选条（全部 + 各模块 + 数量），按钮字体 `text-xs`
+- 每行显示：模块标签 | 重要性（重点/中等/一般）→ 模式名 → 上次练习时间/正确率 → 练习按钮
+- 模块标签和重要性同行显示，模式名不限行数完整显示
+- 底部有折叠的「练习记录」，显示历史练习会话
+
+### 练习选择（chooseMode）
+- 4 个选项，按钮形式：
+  - 「已有 AI 出题」：读取 `practiceSessions` 表里该模式的历史题目
+  - 「重做相关错题」：从 `relatedMistakeIds` 取对应错题原文
+  - 「混合练习」：先做错题，不够用 AI 题补
+  - 「全新出题」：调 DeepSeek API 生成 5 道新题
+- API 出题时显示旋转加载图标 + "生成中..."
+- 出题 prompt 会传入用户做错的参考题原文，要求 AI 保持难度相似
+- AI 出题后自检是否确实考察该弱点模式
+
+### 练习页（practice）
+- 题干 + 选项，没有选项的题用 A/B/C/D 四个字母按钮
+- 选择后点「确认」→ 显示正误 + 解析
+- 支持「退出」回到列表、「下一题」继续
+- 选项背景颜色：选中紫色、正确绿色、错误红色
+
+### 结果页（result）
+- 显示正确率 + 继续练习 / 返回列表按钮
+
+### 数据存储
+- `PracticeSession` 存在 IndexedDB `practiceSessions` 表
+- 字段：`id, module, pattern, questions, createdAt, completedAt, results`
+- 出题误差时 `console.error` 记录，不会静默失败
+
+### 注意事项
+- 没有「复习」标题，页面直接显示内容
+- 模式名去掉行数限制，完整显示
+- 模块筛选按钮在模式数 > 3 时显示
+
 ## 后续计划
 
 - [ ] 改进效果追踪反馈闭环
