@@ -94,12 +94,8 @@ export function MistakeDetailPage() {
         ? await deepseekDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
         : await qwenDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)
       const diag = toQuickDiag(result)
-      setDiagResults(prev => {
-        const next = [...prev, diag]
-        // 自动保存到数据库
-        update(mistake!.id, { quickDiagnosis: diag })
-        return next
-      })
+      await update(mistake!.id, { quickDiagnosis: diag })
+      setDiagResults(prev => [...prev, diag])
       setSelectedDiag(diagResults.length)
       setExpandAi(true)
     } catch (err) {
@@ -310,13 +306,13 @@ export function MistakeDetailPage() {
         <div className="mb-3">
           <label className="text-xs text-slate-400 mb-1 block">题目原文</label>
           {editingStem || !localStem ? (
-            <textarea value={localStem}
-              onChange={e => { setLocalStem(e.target.value); markDirty() }}
+            <textarea value={localStem} rows={1}
+              ref={el => { if (el) requestAnimationFrame(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' }) }}
+              onInput={e => { setLocalStem(e.currentTarget.value); markDirty(); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px' }}
               onBlur={() => setEditingStem(false)}
               onFocus={() => setEditingStem(true)}
               placeholder="点击输入题目原文"
-              rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white resize-none" />
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white resize-none overflow-hidden" />
           ) : (
             <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-slate-50 rounded p-1 -m-1"
               onClick={() => setEditingStem(true)}>{localStem}</p>
