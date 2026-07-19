@@ -44,15 +44,67 @@ export const BASE_SYSTEM = `你是公务员考试解题专家。
 逻辑判断推导必须每步写清原因，推导链不能断。
 输出必须是严格的JSON格式，solution字段按下方风格要求书写。`
 
-export const STEP1_PROMPT = (m: string, q: string, myAnswer?: string) =>
-  `独立完成这道${m}题。如果是逻辑判断题，用中文写推导，每步解释原因——不是"由(2)假得"，而是完整说明为什么假。
+/** 花生十三体系模块方法论 — 诊断时参考，帮助定位具体操作失误 */
+const MODULE_METHODOLOGY: Record<string, string> = {
+  '资料分析': `【资料分析花生十三方法论】
+- ABRX四要素：A=现期量 B=基期量 R=增长率 X=增长量，知二求二
+- 速算三法：①截位直除（选项差距大截2位/差距小截3位）②415份数法（A÷(100+R) 每份×R得X）③假设分配法
+- 比重/平均数变化：分子R>分母R则上升，差值单位百分点；平均数增长率=(总量R-份数R)/(1+份数R)
+- 易错：增长率vs增长量混淆、比重差值单位是百分点非%、"是几倍"vs"多几倍"差1、时间/单位陷阱`,
+
+  '数量关系': `【数量关系花生十三方法论】
+- 核心技巧：赋值法、方程法、代入排除、十字交叉法
+- 工程问题：赋总量为时间的最小公倍数；效率比型直接赋值效率
+- 行程问题：相遇路程和=速度和×时间；追及路程差=速度差×时间；等距离平均速度=2v1v2/(v1+v2)
+- 排列组合：相邻捆绑、不相邻插空、相同元素隔板法C(n-1,m-1)
+- 牛吃草：草生长量=(牛1×天1-牛2×天2)/(天1-天2)；原有草/(牛数-生长量)=天数
+- 易错：利润率分母是成本非售价、1m/s=3.6km/h、容斥"只A"不含重叠、至少用1-都不`,
+
+  '言语理解与表达': `【言语理解花生十三方法论】
+- 逻辑填空核心：找上下文暗示——反义对应（但/却）、并列对应（和/与）、递进对应（甚至）、解释对应（即/冒号）
+- 语素差异法：近义词辨析从不同字入手找语义差异（如"制止"=stop vs"遏制"=restrain）
+- 片段阅读中心句法：转折/递进/因果/对策词后是中心，优先级：对策>结论>论点
+- 细节判断：检查概念/时态/范围/语气/有无/正反六个维度偷换
+- 语句排序：代词（这/其/该）和配对关联词后半不能做首句；代词回指+同词配对形成捆绑
+- 易错：凭语感选不看对应、转折后是重点、成语望文生义、程度轻重不匹配`,
+
+  '判断推理': `【判断推理花生十三方法论】
+- 图形推理规律优先级："组成相同看位置，相似看样式，不同看数量，不行看属性"
+- 一笔画判定：奇点数=0或2可一笔画；常见一笔画：圆、三角形、五角星
+- 逻辑判断翻译公式：如果/就→前推后；只有/才→后推前；除非否则→¬A→B。仅逆否等价，肯后/否前无效
+- 真假推理：找矛盾对（一真一假），矛盾外全确定
+- 加强削弱力度链：削弱-否定论点>断开联系≈因果倒置>他因>举例；加强-补充论据>搭桥>排除他因>举例
+- 定义判断：拆8要素（主体/客体/目的/方式/条件/原因/结果/性质），排除不合格项
+- 类比推理：先找一级关系（语义/逻辑/语法），再做二级辨析（词性/感情色彩/程度）
+- 易错：图形跳过位置样式直接数数、包含vs组成混淆、翻译推理肯后推肯前`,
+
+  '常识判断': `【常识判断花生十三方法论】
+- 排除法优先：找绝对化词（"一切/都/必然"）的选项大概率错
+- 关键词法：从题干提取核心词，匹配选项中的对应概念
+- 时政题：最近一次重大会议/讲话的选项优先`,
+
+  '政治理论': `【政治理论花生十三方法论】
+- 排除法优先：找绝对化词（"一切/都/必然"）的选项大概率错
+- 关键词法：从题干提取核心词，匹配选项中的对应概念
+- 时政题：最近一次重大会议/讲话的选项优先`,
+}
+
+export const STEP1_PROMPT = (m: string, q: string, myAnswer?: string) => {
+  const method = MODULE_METHODOLOGY[m] || ''
+  return `独立完成这道${m}题。如果是逻辑判断题，用中文写推导，每步解释原因——不是"由(2)假得"，而是完整说明为什么假。
+${method ? `\n## 参考方法论\n${method}\n` : ''}
 ## 题目\n${q}${myAnswer ? `\n（用户选择了${myAnswer}，分析时请针对这个错误选项说明错因）` : ''}
 输出JSON：
 {"aiAnswer":"单个字母","questionType":"题型","difficulty":"难度+说明","examPoint":"考什么","keyDifferentiator":"关键分辨点","knowledgePoint":"具体知识点","subCategory":"细分考点","module":"言语理解与表达/数量关系/判断推理/资料分析/常识判断/政治理论","traps":"最有诱惑力的错误选项及其原因（题目设计的客观陷阱）","userErrorCause":"做错这道题最可能的思维原因（从做题者角度）","improvementMethod":"针对这个错因的改进方法（30字内）","solution":"解析内容"}
 只返回JSON。`
+}
 
-export const STEP1B_PROMPT = (m: string, q: string, correctAnswer: string, myAnswer?: string) =>
-  `正确答案是${correctAnswer}。基于此推导解法。${myAnswer ? `用户选择了${myAnswer}，分析时请针对这个错误选项说明错因。` : ''}\n## 题目\n${q}\n输出JSON：{"aiAnswer":"${correctAnswer}","difficulty":"...","examPoint":"...","keyDifferentiator":"...","knowledgePoint":"...","subCategory":"...","module":"...","traps":"...","userErrorCause":"做错这道题最可能的思维原因（从做题者角度）","improvementMethod":"针对这个错因的改进方法（30字内）","solution":"解析内容"}`
+export const STEP1B_PROMPT = (m: string, q: string, correctAnswer: string, myAnswer?: string) => {
+  const method = MODULE_METHODOLOGY[m] || ''
+  return `正确答案是${correctAnswer}。基于此推导解法。${myAnswer ? `用户选择了${myAnswer}，分析时请针对这个错误选项说明错因。` : ''}
+${method ? `\n## 参考方法论\n${method}\n` : ''}
+## 题目\n${q}\n输出JSON：{"aiAnswer":"${correctAnswer}","difficulty":"...","examPoint":"...","keyDifferentiator":"...","knowledgePoint":"...","subCategory":"...","module":"...","traps":"...","userErrorCause":"做错这道题最可能的思维原因（从做题者角度）","improvementMethod":"针对这个错因的改进方法（30字内）","solution":"解析内容"}`
+}
 
 export const DEFAULT_STEP1: Step1Result = {
   aiAnswer: '?', questionType: '未知', difficulty: '未知', examPoint: '未知', keyDifferentiator: '未知',
