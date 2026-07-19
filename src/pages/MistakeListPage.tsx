@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, X, CheckCircle2, FileText, AlertCircle, Star } from 'lucide-react'
+import { Search, Filter, X, CheckCircle2, FileText, AlertCircle, Star, Download } from 'lucide-react'
 import { useMistakes, useCoverage } from '../hooks/useMistakes'
 import { ExamModule, ErrorType, MODULE_LABELS, ERROR_TYPE_SHORT_LABELS, MODULE_COLORS } from '../lib/constants'
 import { formatDate } from '../lib/dateUtils'
 import { searchMistakes, filterMistakes } from '../services/analyticsService'
 import { cn } from '../lib/cn'
 import { mistakeRepository } from '../db'
+import { downloadTxt, printPdf, copyText } from '../services/exportService'
 import type { MistakeRecord } from '../models/mistake'
 
 const ALL_MODULES = Object.values(ExamModule)
@@ -79,6 +80,7 @@ export function MistakeListPage() {
   const [showMastered, setShowMastered] = useState<boolean | undefined>(undefined)
   const [filterNoDiagnosis, setFilterNoDiagnosis] = useState(false)
   const [filterStarred, setFilterStarred] = useState(false)
+  const [showExport, setShowExport] = useState(false)
   const [datePreset, setDatePreset] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
@@ -152,7 +154,7 @@ export function MistakeListPage() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={cn(
-            'p-2.5 rounded-xl border border-slate-200 bg-white transition-colors',
+            'p-2.5 rounded-xl border border-slate-200 bg-white transition-colors relative',
             showFilters || activeFilterCount > 0 ? 'text-blue-500 border-blue-200 bg-blue-50' : 'text-slate-400'
           )}
         >
@@ -162,6 +164,15 @@ export function MistakeListPage() {
               {activeFilterCount}
             </span>
           )}
+        </button>
+        <button
+          onClick={() => setShowExport(true)}
+          className={cn(
+            'p-2.5 rounded-xl border border-slate-200 bg-white transition-colors',
+            showExport ? 'text-purple-500 border-purple-200 bg-purple-50' : 'text-slate-400'
+          )}
+        >
+          <Download size={18} />
         </button>
       </div>
 
@@ -306,6 +317,59 @@ export function MistakeListPage() {
           <p className="text-sm">
             {mistakes.length === 0 ? '点击右下角 + 记录第一道错题' : '试试调整筛选条件'}
           </p>
+        </div>
+      )}
+
+      {/* 导出面板 */}
+      {showExport && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={() => setShowExport(false)}>
+          <div className="bg-white rounded-t-2xl p-5 pb-8 max-w-lg w-full shadow-xl animate-fade-in" onClick={e => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-slate-800 mb-1">导出题目</p>
+            <p className="text-xs text-slate-400 mb-4">当前筛选到 {filtered.length} 道题</p>
+
+            {/* 完整模式 */}
+            <p className="text-xs font-medium text-slate-500 mb-2">📋 完整模式（含答案和解析）</p>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={async () => { downloadTxt(filtered, 'full'); setShowExport(false) }}
+                disabled={filtered.length === 0}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 bg-white disabled:opacity-30"
+              >下载 TXT</button>
+              <button
+                onClick={() => { printPdf(filtered, 'full'); setShowExport(false) }}
+                disabled={filtered.length === 0}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 bg-white disabled:opacity-30"
+              >打印 PDF</button>
+            </div>
+
+            {/* 考试模式 */}
+            <p className="text-xs font-medium text-slate-500 mb-2">📝 考试模式（仅题目，无答案）</p>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={async () => { downloadTxt(filtered, 'exam'); setShowExport(false) }}
+                disabled={filtered.length === 0}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 bg-white disabled:opacity-30"
+              >下载 TXT</button>
+              <button
+                onClick={() => { printPdf(filtered, 'exam'); setShowExport(false) }}
+                disabled={filtered.length === 0}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 bg-white disabled:opacity-30"
+              >打印 PDF</button>
+            </div>
+
+            {/* 复制 */}
+            <button
+              onClick={async () => {
+                await copyText(filtered)
+                setShowExport(false)
+              }}
+              disabled={filtered.length === 0}
+              className="w-full py-2 rounded-xl bg-purple-500 text-white text-sm font-medium disabled:opacity-30"
+            >复制到剪贴板（完整模式）</button>
+
+            <button onClick={() => setShowExport(false)}
+              className="w-full py-2 mt-2 text-xs text-slate-400">取消</button>
+          </div>
         </div>
       )}
     </div>

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "gongkao-huasheng13": {
+      "source": "wangjunqing-coder/huasheng13-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "6ad9cb7c9a6d8175591d1341a694086ef9037073271c52b81cdca4863ed5d3de"
+    }
+  }
+}
