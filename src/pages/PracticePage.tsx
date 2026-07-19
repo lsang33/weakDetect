@@ -146,6 +146,32 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
+  // === sessionStorage 持久化（回顾页跳详情后恢复） ===
+  useEffect(() => {
+    const saved = sessionStorage.getItem('practice_review_state')
+    if (!saved || allMistakes.length === 0) return
+    try {
+      const state = JSON.parse(saved)
+      if (Date.now() - state.timestamp > 30 * 60 * 1000) {
+        sessionStorage.removeItem('practice_review_state')
+        return
+      }
+      // 从最新数据中恢复题目
+      const restoredQuestions = state.questionIds
+        .map((id: string) => mistakeMap.get(id))
+        .filter(Boolean) as MistakeRecord[]
+      if (restoredQuestions.length === 0) return
+      setQuestions(restoredQuestions)
+      setResults(state.results)
+      setPhase('review')
+      // 初始化展开状态（错题默认展开）
+      const s = new Set<number>()
+      state.results.forEach((r: any, i: number) => { if (!r.correct) s.add(i) })
+      setExpandedSet(s)
+      sessionStorage.removeItem('practice_review_state')
+    } catch { /* ignore */ }
+  }, [allMistakes])
+
   // === 处理函数 ===
 
   function startPractice() {
@@ -334,7 +360,7 @@ export function PracticePage() {
                 !moduleFilter ? 'bg-purple-500 text-white' : 'bg-white text-slate-500 border border-slate-200')}
             >全部</button>
             {ALL_MODULES.map(m => {
-              const count = moduleFilter ? undefined : moduleCounts[m]
+              const count = moduleCounts[m]
               return (
                 <button
                   key={m}
@@ -343,7 +369,7 @@ export function PracticePage() {
                     moduleFilter === m ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200')}
                   style={moduleFilter === m ? { backgroundColor: MODULE_COLORS[m] } : undefined}
                 >
-                  {MODULE_LABELS[m]}{typeof count === 'number' && count > 0 ? ` ${count}` : ''}
+                  {MODULE_LABELS[m]}{count ? ` ${count}` : ''}
                 </button>
               )
             })}
@@ -425,29 +451,29 @@ export function PracticePage() {
         </div>
 
         {/* 选项开关 */}
-        <div className="space-y-2">
-          <label className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-slate-200">
+        <div className="space-y-1.5">
+          <label className="flex items-center justify-between bg-white rounded-xl px-4 py-1.5 border border-slate-200">
             <span className="text-sm text-slate-700">包含已掌握的题</span>
             <button
               onClick={() => setIncludeMastered(!includeMastered)}
-              className={cn('w-11 h-6 rounded-full transition-colors relative',
+              className={cn('w-10 h-5 rounded-full transition-colors relative overflow-hidden shrink-0',
                 includeMastered ? 'bg-purple-500' : 'bg-slate-300')}
             >
-              <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
-                includeMastered ? 'translate-x-5' : 'translate-x-0.5')} />
+              <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all',
+                includeMastered ? 'left-[18px]' : 'left-0.5')} />
             </button>
           </label>
-          <label className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-slate-200">
+          <label className="flex items-center justify-between bg-white rounded-xl px-4 py-1.5 border border-slate-200">
             <span className="text-sm text-slate-700 flex items-center gap-1.5">
               <Star size={14} className="text-amber-400" /> 仅收藏
             </span>
             <button
               onClick={() => setStarredOnly(!starredOnly)}
-              className={cn('w-11 h-6 rounded-full transition-colors relative',
+              className={cn('w-10 h-5 rounded-full transition-colors relative overflow-hidden shrink-0',
                 starredOnly ? 'bg-purple-500' : 'bg-slate-300')}
             >
-              <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
-                starredOnly ? 'translate-x-5' : 'translate-x-0.5')} />
+              <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all',
+                starredOnly ? 'left-[18px]' : 'left-0.5')} />
             </button>
           </label>
         </div>
@@ -784,7 +810,15 @@ export function PracticePage() {
                             isMastered ? 'bg-green-50 border-green-200 text-green-500' : 'bg-white border-slate-200 text-slate-500')}
                         >{isMastered ? '已掌握' : '标记已掌握'}</button>
                         <button
-                          onClick={() => navigate(`/mistakes/${q.id}`)}
+                          onClick={() => {
+                            // 保存当前回顾状态，返回时可恢复
+                            sessionStorage.setItem('practice_review_state', JSON.stringify({
+                              questionIds: questions.map(qq => qq.id),
+                              results,
+                              timestamp: Date.now(),
+                            }))
+                            navigate(`/mistakes/${q.id}`)
+                          }}
                           className="py-1.5 px-3 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 bg-white"
                         >详情</button>
                       </div>
