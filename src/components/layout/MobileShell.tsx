@@ -10,7 +10,7 @@ const pageConfig: Record<string, { title: string; subtitle?: string; showFAB: bo
   '/log': { title: '记录错题', subtitle: '认真分析每一次错误', showFAB: false },
   '/mistakes': { title: '错题本', showFAB: true },
   '/analytics': { title: '统计分析', showFAB: false },
-  '/review': { title: '复习计划', showFAB: false },
+  '/review': { title: '练习', showFAB: false },
   '/batch': { title: '综合分析', showFAB: false },
   '/settings': { title: '设置', showFAB: false },
 }

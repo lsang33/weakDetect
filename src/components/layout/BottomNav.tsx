@@ -6,7 +6,7 @@ const tabs = [
   { to: '/', icon: LayoutDashboard, label: '首页' },
   { to: '/mistakes', icon: BookOpen, label: '错题本' },
   { to: '/analytics', icon: BarChart3, label: '分析' },
-  { to: '/review', icon: CalendarCheck, label: '复习' },
+  { to: '/review', icon: CalendarCheck, label: '练习' },
 ]
 
 export function BottomNav() {

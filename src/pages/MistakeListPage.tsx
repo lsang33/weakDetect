@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, X, CheckCircle2, FileText, AlertCircle } from 'lucide-react'
+import { Search, Filter, X, CheckCircle2, FileText, AlertCircle, Star } from 'lucide-react'
 import { useMistakes, useCoverage } from '../hooks/useMistakes'
 import { ExamModule, ErrorType, MODULE_LABELS, ERROR_TYPE_SHORT_LABELS, MODULE_COLORS } from '../lib/constants'
 import { formatDate } from '../lib/dateUtils'
 import { searchMistakes, filterMistakes } from '../services/analyticsService'
 import { cn } from '../lib/cn'
+import { mistakeRepository } from '../db'
 import type { MistakeRecord } from '../models/mistake'
 
 const ALL_MODULES = Object.values(ExamModule)
@@ -14,6 +15,11 @@ const ALL_ERROR_TYPES = Object.values(ErrorType)
 function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
   const navigate = useNavigate()
   const hasAiDiagnosis = !!mistake.quickDiagnosis
+
+  async function handleStar(e: React.MouseEvent) {
+    e.stopPropagation()
+    try { await mistakeRepository.toggleStar(mistake.id) } catch { /* ignore */ }
+  }
 
   return (
     <div
@@ -51,6 +57,10 @@ function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {mistake.questionStem && <FileText size={14} className="text-blue-300" />}
+          <button onClick={handleStar} className="p-0.5">
+            <Star size={16} fill={mistake.starred ? '#F59E0B' : 'none'}
+              className={mistake.starred ? 'text-amber-400' : 'text-slate-300'} />
+          </button>
           <span className="text-xs text-slate-400 shrink-0">{formatDate(mistake.createdAt)}</span>
         </div>
       </div>
@@ -68,6 +78,7 @@ export function MistakeListPage() {
   const [filterErrorType, setFilterErrorType] = useState<ErrorType | undefined>()
   const [showMastered, setShowMastered] = useState<boolean | undefined>(undefined)
   const [filterNoDiagnosis, setFilterNoDiagnosis] = useState(false)
+  const [filterStarred, setFilterStarred] = useState(false)
   const [datePreset, setDatePreset] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
@@ -81,6 +92,10 @@ export function MistakeListPage() {
 
     if (filterNoDiagnosis) {
       result = result.filter(m => !m.quickDiagnosis)
+    }
+
+    if (filterStarred) {
+      result = result.filter(m => m.starred)
     }
 
     // 日期筛选
@@ -113,7 +128,7 @@ export function MistakeListPage() {
     return result
   }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis, datePreset, dateStart, dateEnd])
 
-  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis, datePreset !== 'all'].filter(Boolean).length
+  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis, filterStarred, datePreset !== 'all'].filter(Boolean).length
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -240,6 +255,12 @@ export function MistakeListPage() {
                 className={cn('px-2.5 py-1 rounded-lg text-xs', filterNoDiagnosis ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-500')}
               >
                 待诊断
+              </button>
+              <button
+                onClick={() => setFilterStarred(!filterStarred)}
+                className={cn('px-2.5 py-1 rounded-lg text-xs flex items-center gap-0.5', filterStarred ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500')}
+              >
+                <Star size={10} fill={filterStarred ? 'currentColor' : 'none'} /> 收藏
               </button>
             </div>
           </div>

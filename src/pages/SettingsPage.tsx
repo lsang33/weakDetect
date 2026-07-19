@@ -334,6 +334,26 @@ export function SettingsPage() {
         </button>
       </div>
 
+      {/* 备份说明 */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+        <div className="flex items-center gap-2 mb-2">
+          <Info size={16} className="text-green-500" />
+          <h2 className="text-sm font-semibold text-slate-800">备份说明</h2>
+        </div>
+        <div className="space-y-1.5 text-xs text-slate-500 leading-relaxed">
+          <p>📥 <strong>上次备份：</strong>{localStorage.getItem('lastAutoBackup') || '从未备份'}</p>
+          <p>🔄 <strong>自动备份：</strong>每天首次打开首页时，自动下载备份文件到手机/电脑的下载目录</p>
+          <p>📁 <strong>备份文件位置：</strong></p>
+          <ul className="pl-4 space-y-0.5">
+            <li>• iPhone：文件 App → Downloads / 下载</li>
+            <li>• Android：文件管理器 → Downloads</li>
+            <li>• 电脑：浏览器设置 → 下载内容（默认 Downloads）</li>
+          </ul>
+          <p className="mt-1">💡 <strong>建议：</strong>定期将下载目录的备份文件复制到 iCloud、网盘或其他安全位置。</p>
+          <p className="text-amber-500">⚠️ 清除浏览器数据会丢失本地错题，请务必保留备份文件。</p>
+        </div>
+      </div>
+
       {/* API 设置 */}
       <ApiSettings />
 

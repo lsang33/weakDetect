@@ -65,6 +65,12 @@ export interface MistakeRecord {
 
   // === 新增：改进追踪 ===
   improvementAttempts?: ImprovementAttempt[]
+
+  // === 练习相关 ===
+  /** 练习累计答错次数 */
+  practiceWrongCount?: number
+  /** 收藏标记（独立于掌握状态） */
+  starred?: boolean
 }
 
 /** 创建错题的输入类型 */

@@ -141,4 +141,27 @@ export const mistakeRepository = {
     const sources = new Set(all.map(m => m.source).filter(Boolean) as string[])
     return Array.from(sources).sort()
   },
+
+  /** 记录练习结果：更新 reviewCount、reviewedAt、practiceWrongCount */
+  async recordPracticeResult(id: string, correct: boolean): Promise<void> {
+    const record = await db.mistakes.get(id)
+    if (record) {
+      const update: any = {
+        reviewedAt: new Date(),
+        reviewCount: (record.reviewCount || 0) + 1,
+      }
+      if (!correct) {
+        update.practiceWrongCount = (record.practiceWrongCount || 0) + 1
+      }
+      await db.mistakes.update(id, update)
+    }
+  },
+
+  /** 切换收藏标记 */
+  async toggleStar(id: string): Promise<void> {
+    const record = await db.mistakes.get(id)
+    if (record) {
+      await db.mistakes.update(id, { starred: !record.starred })
+    }
+  },
 }

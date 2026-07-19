@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Trash2, CheckCircle2, RotateCcw, Lightbulb, PlusCircle, ChevronDown, ChevronUp, Camera, Edit3, RefreshCw, Save } from 'lucide-react'
+import { ArrowLeft, Trash2, CheckCircle2, RotateCcw, Lightbulb, PlusCircle, ChevronDown, ChevronUp, Camera, Edit3, RefreshCw, Save, Star } from 'lucide-react'
 import { useMistake, useMistakeActions } from '../hooks/useMistakes'
 import {
   MODULE_LABELS, MODULE_COLORS, ERROR_TYPE_LABELS, ERROR_TYPE_COLORS,
@@ -622,6 +622,18 @@ export function MistakeDetailPage() {
           ) : (
             <><CheckCircle2 size={16} /> 标记已掌握</>
           )}
+        </button>
+        <button
+          onClick={async () => { await mistakeRepository.toggleStar(mistake!.id) }}
+          className={cn(
+            'py-2.5 px-4 rounded-xl font-medium text-sm flex items-center gap-1.5 transition-colors',
+            mistake.starred
+              ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          )}
+        >
+          <Star size={16} fill={mistake.starred ? 'currentColor' : 'none'} />
+          {mistake.starred ? '已收藏' : '收藏'}
         </button>
         <button
           onClick={handleDelete}

@@ -5,7 +5,7 @@ import { MistakeLogPage } from './pages/MistakeLogPage'
 import { MistakeListPage } from './pages/MistakeListPage'
 import { MistakeDetailPage } from './pages/MistakeDetailPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
-import { ReviewPlanPage } from './pages/ReviewPlanPage'
+import { PracticePage } from './pages/PracticePage'
 import { BatchAnalysisPage } from './pages/BatchAnalysisPage'
 import { SettingsPage } from './pages/SettingsPage'
 
@@ -19,7 +19,7 @@ export default function App() {
           <Route path="/mistakes" element={<MistakeListPage />} />
           <Route path="/mistakes/:id" element={<MistakeDetailPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/review" element={<ReviewPlanPage />} />
+          <Route path="/review" element={<PracticePage />} />
           <Route path="/batch" element={<BatchAnalysisPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
