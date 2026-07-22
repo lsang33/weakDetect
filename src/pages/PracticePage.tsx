@@ -100,11 +100,7 @@ export function PracticePage() {
   }, [allMistakes])
 
   // === 阶段状态 ===
-  const [phase, setPhase] = useState<Phase>(() => {
-    const c = getReviewCache()
-    if (c && Date.now() - c.timestamp < 30 * 60 * 1000) return 'review'
-    return 'select'
-  })
+  const [phase, setPhase] = useState<Phase>('select')
   const [mode, setMode] = useState<'practice' | 'exam'>('practice')
 
   // === 筛选状态 ===
@@ -116,20 +112,12 @@ export function PracticePage() {
   const [starredOnly, setStarredOnly] = useState(false)
 
   // === 练习状态 ===
-  const [questions, setQuestions] = useState<MistakeRecord[]>(() => {
-    const c = getReviewCache()
-    if (c && Date.now() - c.timestamp < 30 * 60 * 1000) return c.questions
-    return []
-  })
+  const [questions, setQuestions] = useState<MistakeRecord[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [examAnswers, setExamAnswers] = useState<Record<number, string>>({})
-  const [results, setResults] = useState<{ userAnswer: string; correct: boolean; timeMs: number }[]>(() => {
-    const c = getReviewCache()
-    if (c && Date.now() - c.timestamp < 30 * 60 * 1000) return c.results
-    return []
-  })
+  const [results, setResults] = useState<{ userAnswer: string; correct: boolean; timeMs: number }[]>([])
 
   // === 计时 ===
   const questionStartRef = useRef(Date.now())
@@ -139,17 +127,8 @@ export function PracticePage() {
   const [confirmType, setConfirmType] = useState<'exit' | 'submit' | null>(null)
 
   // === 回顾阶段状态 ===
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>(
-    () => {
-      const c = getReviewCache()
-      return c?.reviewFilter || 'all'
-    },
-  )
-  const [expandedSet, setExpandedSet] = useState<Set<number>>(() => {
-    const c = getReviewCache()
-    if (c?.expandedSet) return new Set(c.expandedSet)
-    return new Set()
-  })
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all')
+  const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
 
   // === 本地收藏状态（乐观更新） ===
   const [starredSet, setStarredSet] = useState<Set<string>>(new Set())
@@ -185,12 +164,25 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // 恢复回顾页后清理缓存
+  // 从缓存恢复回顾页（useEffect 在 mount 后执行，比 lazy init 更可控）
+  const [restoring, setRestoring] = useState(false)
   useEffect(() => {
-    if (phase === 'review' && questions.length > 0 && getReviewCache()) {
+    const c = getReviewCache()
+    if (!c) return
+    if (Date.now() - c.timestamp > 30 * 60 * 1000) { clearReviewCache(); return }
+    // 有缓存 → 恢复
+    setRestoring(true)
+    setQuestions(c.questions)
+    setResults(c.results)
+    setExpandedSet(new Set(c.expandedSet || []))
+    if (c.reviewFilter) setReviewFilter(c.reviewFilter)
+    // 用 requestAnimationFrame 确保 state 都更新完再切换 phase
+    requestAnimationFrame(() => {
+      setPhase('review')
+      setRestoring(false)
       clearReviewCache()
-    }
-  }, [phase, questions.length])
+    })
+  }, [])
 
   // === 处理函数 ===
 
@@ -862,10 +854,20 @@ export function PracticePage() {
     )
   }
 
+  // 正在恢复缓存
+  if (restoring) {
+    return (
+      <div className="text-center py-16 animate-fade-in">
+        <p className="text-slate-400 text-sm">恢复中...</p>
+      </div>
+    )
+  }
+
   // 兜底：如果状态异常显示恢复提示而不是白屏
   return (
     <div className="text-center py-16 animate-fade-in">
-      <p className="text-slate-400 text-sm mb-4">页面状态异常</p>
+      <p className="text-slate-400 text-sm mb-1">页面状态异常</p>
+      <p className="text-xs text-slate-400 mb-4">phase={phase} q={questions.length} r={results.length}</p>
       <button
         onClick={() => { clearReviewCache(); setPhase('select'); setQuestions([]); setResults([]) }}
         className="px-5 py-2 rounded-xl bg-purple-500 text-white text-sm font-medium"
