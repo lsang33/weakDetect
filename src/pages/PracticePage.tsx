@@ -164,24 +164,20 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // 从缓存恢复回顾页（useEffect 在 mount 后执行，比 lazy init 更可控）
-  const [restoring, setRestoring] = useState(false)
+  // 从缓存恢复回顾页
+  const didRestore = useRef(false)
   useEffect(() => {
+    if (didRestore.current) return  // 防止重复恢复导致无限循环
     const c = getReviewCache()
     if (!c) return
     if (Date.now() - c.timestamp > 30 * 60 * 1000) { clearReviewCache(); return }
-    // 有缓存 → 恢复
-    setRestoring(true)
+    didRestore.current = true
     setQuestions(c.questions)
     setResults(c.results)
     setExpandedSet(new Set(c.expandedSet || []))
     if (c.reviewFilter) setReviewFilter(c.reviewFilter)
-    // 用 requestAnimationFrame 确保 state 都更新完再切换 phase
-    requestAnimationFrame(() => {
-      setPhase('review')
-      setRestoring(false)
-      clearReviewCache()
-    })
+    setPhase('review')
+    clearReviewCache()
   }, [])
 
   // === 处理函数 ===
@@ -854,16 +850,7 @@ export function PracticePage() {
     )
   }
 
-  // 正在恢复缓存
-  if (restoring) {
-    return (
-      <div className="text-center py-16 animate-fade-in">
-        <p className="text-slate-400 text-sm">恢复中...</p>
-      </div>
-    )
-  }
-
-  // 兜底：如果状态异常显示恢复提示而不是白屏
+  // 兜底：状态异常时显示恢复按钮而不是白屏
   return (
     <div className="text-center py-16 animate-fade-in">
       <p className="text-slate-400 text-sm mb-1">页面状态异常</p>
