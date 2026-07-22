@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
-import { mistakeRepository } from '../db'
+import { mistakeRepository, practiceRecordRepository } from '../db'
 import { MODULE_LABELS, MODULE_COLORS } from '../lib/constants'
 import { cn } from '../lib/cn'
 import { ExamModule } from '../models/exam'
@@ -99,6 +100,10 @@ export function PracticePage() {
     return map
   }, [allMistakes])
 
+  // === 练习记录 ===
+  const records = useLiveQuery(() => practiceRecordRepository.getAll(), []) ?? []
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null)
+
   // === 阶段状态 ===
   const [phase, setPhase] = useState<Phase>('select')
   const [mode, setMode] = useState<'practice' | 'exam'>('practice')
@@ -174,6 +179,19 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
+  // 进入结果页时自动保存练习记录
+  useEffect(() => {
+    if (phase !== 'result' || questions.length === 0 || results.length === 0) return
+    if (savedRecordId) return
+    const id = crypto.randomUUID()
+    practiceRecordRepository.create({
+      questionIds: questions.map(q => q.id),
+      results,
+      mode,
+      createdAt: new Date(),
+    }).then(() => setSavedRecordId(id))
+  }, [phase, questions.length, results.length])
+
   // 从缓存恢复回顾页
   const didRestore = useRef(false)
   useEffect(() => {
@@ -201,6 +219,7 @@ export function PracticePage() {
     setShowFeedback(false)
     setExamAnswers({})
     setResults([])
+    setSavedRecordId(null)
     timingsRef.current = new Map()
     questionStartRef.current = Date.now()
     setConfirmType(null)
@@ -514,6 +533,59 @@ export function PracticePage() {
             {filtered.length === 0 ? '没有可练习的题目' : `随机抽取 ${Math.min(maxQuestions, filtered.length)} 道，开始练习`}
           </button>
         </div>
+
+        {/* 练习记录 */}
+        {records.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+              <History size={12} /> 练习记录 ({records.length})
+            </p>
+            <div className="space-y-1.5">
+              {records.slice(0, 10).map((r) => {
+                const correctCount = r.results.filter(res => res.correct).length
+                const totalMs = r.results.reduce((s, res) => s + (res.timeMs || 0), 0)
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      // 从当前数据库中查找题目（可能已被删除）
+                      const qs = r.questionIds
+                        .map(id => mistakeMap.get(id))
+                        .filter(Boolean) as MistakeRecord[]
+                      if (qs.length === 0) return
+                      setQuestions(qs)
+                      setResults(r.results)
+                      setMode(r.mode)
+                      setPhase('review')
+                      setReviewFilter('all')
+                      const s = new Set<number>()
+                      r.results.forEach((res, i) => { if (!res.correct) s.add(i) })
+                      setExpandedSet(s)
+                    }}
+                    className="w-full bg-white rounded-xl px-4 py-2.5 border border-slate-100 shadow-sm text-left active:bg-slate-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">
+                          {new Date(r.createdAt).toLocaleDateString('zh-CN')} {new Date(r.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full',
+                          r.mode === 'exam' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600')}>
+                          {r.mode === 'exam' ? '考试' : '刷题'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-medium text-slate-700">{correctCount}/{r.results.length}</span>
+                        <span className="text-slate-400">{Math.round(correctCount / r.results.length * 100)}%</span>
+                        {totalMs > 0 && <span className="text-slate-400">{formatTimeShort(totalMs)}</span>}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }

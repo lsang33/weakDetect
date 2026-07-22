@@ -121,3 +121,12 @@ export interface AnalysisCoverage {
   total: number
   uncoveredIds: string[]
 }
+
+/** 练习记录 — 每次练习完成后保存 */
+export interface PracticeRecord {
+  id: string
+  questionIds: string[]
+  results: { userAnswer: string; correct: boolean; timeMs: number }[]
+  mode: 'practice' | 'exam'
+  createdAt: Date
+}
