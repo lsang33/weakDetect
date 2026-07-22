@@ -82,7 +82,15 @@ export function PracticePage() {
   }, [allMistakes])
 
   // === 阶段状态 ===
-  const [phase, setPhase] = useState<Phase>('select')
+  const [phase, setPhase] = useState<Phase>(() => {
+    const saved = sessionStorage.getItem('practice_review_state')
+    if (!saved) return 'select'
+    try {
+      const state = JSON.parse(saved)
+      if (Date.now() - state.timestamp > 30 * 60 * 1000) return 'select'
+      return 'review'
+    } catch { return 'select' }
+  })
   const [mode, setMode] = useState<'practice' | 'exam'>('practice')
 
   // === 筛选状态 ===
@@ -94,12 +102,28 @@ export function PracticePage() {
   const [starredOnly, setStarredOnly] = useState(false)
 
   // === 练习状态 ===
-  const [questions, setQuestions] = useState<MistakeRecord[]>([])
+  const [questions, setQuestions] = useState<MistakeRecord[]>(() => {
+    const saved = sessionStorage.getItem('practice_review_state')
+    if (!saved) return []
+    try {
+      const state = JSON.parse(saved)
+      if (Date.now() - state.timestamp > 30 * 60 * 1000) return []
+      return state.questions || []
+    } catch { return [] }
+  })
   const [currentIdx, setCurrentIdx] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [examAnswers, setExamAnswers] = useState<Record<number, string>>({})
-  const [results, setResults] = useState<{ userAnswer: string; correct: boolean; timeMs: number }[]>([])
+  const [results, setResults] = useState<{ userAnswer: string; correct: boolean; timeMs: number }[]>(() => {
+    const saved = sessionStorage.getItem('practice_review_state')
+    if (!saved) return []
+    try {
+      const state = JSON.parse(saved)
+      if (Date.now() - state.timestamp > 30 * 60 * 1000) return []
+      return state.results || []
+    } catch { return [] }
+  })
 
   // === 计时 ===
   const questionStartRef = useRef(Date.now())
@@ -146,31 +170,12 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // === sessionStorage 持久化（回顾页跳详情后恢复） ===
+  // 恢复回顾页后清理 sessionStorage
   useEffect(() => {
-    const saved = sessionStorage.getItem('practice_review_state')
-    if (!saved || allMistakes.length === 0) return
-    try {
-      const state = JSON.parse(saved)
-      if (Date.now() - state.timestamp > 30 * 60 * 1000) {
-        sessionStorage.removeItem('practice_review_state')
-        return
-      }
-      // 从最新数据中恢复题目
-      const restoredQuestions = state.questionIds
-        .map((id: string) => mistakeMap.get(id))
-        .filter(Boolean) as MistakeRecord[]
-      if (restoredQuestions.length === 0) return
-      setQuestions(restoredQuestions)
-      setResults(state.results)
-      setPhase('review')
-      // 初始化展开状态（错题默认展开）
-      const s = new Set<number>()
-      state.results.forEach((r: any, i: number) => { if (!r.correct) s.add(i) })
-      setExpandedSet(s)
+    if (phase === 'review' && questions.length > 0 && results.length > 0) {
       sessionStorage.removeItem('practice_review_state')
-    } catch { /* ignore */ }
-  }, [allMistakes])
+    }
+  }, [phase, questions.length, results.length])
 
   // === 处理函数 ===
 
@@ -811,9 +816,9 @@ export function PracticePage() {
                         >{isMastered ? '已掌握' : '标记已掌握'}</button>
                         <button
                           onClick={() => {
-                            // 保存当前回顾状态，返回时可恢复
+                            // 保存完整回顾状态到 sessionStorage（lazy init 同步恢复，避免异步竞争）
                             sessionStorage.setItem('practice_review_state', JSON.stringify({
-                              questionIds: questions.map(qq => qq.id),
+                              questions,
                               results,
                               timestamp: Date.now(),
                             }))
