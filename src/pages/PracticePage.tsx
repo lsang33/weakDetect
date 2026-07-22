@@ -164,21 +164,7 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // 从缓存恢复回顾页
-  const didRestore = useRef(false)
-  useEffect(() => {
-    if (didRestore.current) return  // 防止重复恢复导致无限循环
-    const c = getReviewCache()
-    if (!c) return
-    if (Date.now() - c.timestamp > 30 * 60 * 1000) { clearReviewCache(); return }
-    didRestore.current = true
-    setQuestions(c.questions)
-    setResults(c.results)
-    setExpandedSet(new Set(c.expandedSet || []))
-    if (c.reviewFilter) setReviewFilter(c.reviewFilter)
-    setPhase('review')
-    clearReviewCache()
-  }, [])
+  // TODO: 暂时禁用缓存恢复，排查导航本身是否正常
 
   // === 处理函数 ===
 
@@ -819,13 +805,6 @@ export function PracticePage() {
                         >{isMastered ? '已掌握' : '标记已掌握'}</button>
                         <button
                           onClick={() => {
-                            setReviewCache({
-                              questions,
-                              results,
-                              expandedSet: Array.from(expandedSet),
-                              reviewFilter,
-                              timestamp: Date.now(),
-                            })
                             navigate(`/mistakes/${q.id}`)
                           }}
                           className="py-1.5 px-3 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 bg-white"
