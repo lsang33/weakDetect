@@ -130,15 +130,25 @@ export function PracticePage() {
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all')
   const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
 
-  // === 本地收藏状态（乐观更新） ===
-  const [starredSet, setStarredSet] = useState<Set<string>>(new Set())
-  useEffect(() => {
-    const next = new Set<string>()
+  // === 本地收藏状态 ===
+  // 用 useMemo 而非 useState+useEffect，避免 setStarredSet 触发 allMistakes
+  // 重新渲染 → 新数组引用 → effect 再触发 → 无限循环
+  const [optimisticStars, setOptimisticStars] = useState<Set<string>>(new Set())
+  const baseStarredSet = useMemo(() => {
+    const s = new Set<string>()
     for (const m of allMistakes) {
-      if (m.starred) next.add(m.id)
+      if (m.starred) s.add(m.id)
     }
-    setStarredSet(next)
+    return s
   }, [allMistakes])
+  const starredSet = useMemo(() => {
+    const combined = new Set(baseStarredSet)
+    for (const id of optimisticStars) {
+      if (combined.has(id)) combined.delete(id)
+      else combined.add(id)
+    }
+    return combined
+  }, [baseStarredSet, optimisticStars])
 
   // 每题开始时重置计时器
   useEffect(() => {
@@ -164,7 +174,21 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // TODO: 暂时禁用缓存恢复，排查导航本身是否正常
+  // 从缓存恢复回顾页
+  const didRestore = useRef(false)
+  useEffect(() => {
+    if (didRestore.current) return
+    const c = getReviewCache()
+    if (!c) return
+    if (Date.now() - c.timestamp > 30 * 60 * 1000) { clearReviewCache(); return }
+    didRestore.current = true
+    setQuestions(c.questions)
+    setResults(c.results)
+    setExpandedSet(new Set(c.expandedSet || []))
+    if (c.reviewFilter) setReviewFilter(c.reviewFilter)
+    setPhase('review')
+    clearReviewCache()
+  }, [])
 
   // === 处理函数 ===
 
@@ -252,7 +276,8 @@ export function PracticePage() {
   }
 
   async function toggleStar(id: string) {
-    setStarredSet(prev => {
+    // 乐观更新：先切换本地状态，等 DB 同步后 useMemo 自动修正
+    setOptimisticStars(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -805,6 +830,13 @@ export function PracticePage() {
                         >{isMastered ? '已掌握' : '标记已掌握'}</button>
                         <button
                           onClick={() => {
+                            setReviewCache({
+                              questions,
+                              results,
+                              expandedSet: Array.from(expandedSet),
+                              reviewFilter,
+                              timestamp: Date.now(),
+                            })
                             navigate(`/mistakes/${q.id}`)
                           }}
                           className="py-1.5 px-3 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 bg-white"
