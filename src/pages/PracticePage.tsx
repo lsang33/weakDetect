@@ -925,6 +925,10 @@ export function PracticePage() {
         {/* 底部 */}
         <div className="flex gap-2">
           <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white">
+            返回
+          </button>
+          <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
             className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
             再来一轮
           </button>
