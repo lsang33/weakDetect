@@ -10,6 +10,15 @@ import type { MistakeRecord } from '../models/mistake'
 
 type Phase = 'select' | 'practice' | 'result' | 'review'
 
+/** 回顾页缓存（模块级变量，SPA 路由跳转不丢失，免去序列化/反序列化问题） */
+let reviewCache: {
+  questions: MistakeRecord[]
+  results: { userAnswer: string; correct: boolean; timeMs: number }[]
+  expandedSet: number[] // 展开状态的索引
+  reviewFilter: 'all' | 'wrong'
+  timestamp: number
+} | null = null
+
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 const LETTERS = ['A', 'B', 'C', 'D', 'E']
 
@@ -83,13 +92,8 @@ export function PracticePage() {
 
   // === 阶段状态 ===
   const [phase, setPhase] = useState<Phase>(() => {
-    const saved = sessionStorage.getItem('practice_review_state')
-    if (!saved) return 'select'
-    try {
-      const state = JSON.parse(saved)
-      if (Date.now() - state.timestamp > 30 * 60 * 1000) return 'select'
-      return 'review'
-    } catch { return 'select' }
+    if (reviewCache && Date.now() - reviewCache.timestamp < 30 * 60 * 1000) return 'review'
+    return 'select'
   })
   const [mode, setMode] = useState<'practice' | 'exam'>('practice')
 
@@ -103,26 +107,16 @@ export function PracticePage() {
 
   // === 练习状态 ===
   const [questions, setQuestions] = useState<MistakeRecord[]>(() => {
-    const saved = sessionStorage.getItem('practice_review_state')
-    if (!saved) return []
-    try {
-      const state = JSON.parse(saved)
-      if (Date.now() - state.timestamp > 30 * 60 * 1000) return []
-      return state.questions || []
-    } catch { return [] }
+    if (reviewCache && Date.now() - reviewCache.timestamp < 30 * 60 * 1000) return reviewCache.questions
+    return []
   })
   const [currentIdx, setCurrentIdx] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [examAnswers, setExamAnswers] = useState<Record<number, string>>({})
   const [results, setResults] = useState<{ userAnswer: string; correct: boolean; timeMs: number }[]>(() => {
-    const saved = sessionStorage.getItem('practice_review_state')
-    if (!saved) return []
-    try {
-      const state = JSON.parse(saved)
-      if (Date.now() - state.timestamp > 30 * 60 * 1000) return []
-      return state.results || []
-    } catch { return [] }
+    if (reviewCache && Date.now() - reviewCache.timestamp < 30 * 60 * 1000) return reviewCache.results
+    return []
   })
 
   // === 计时 ===
@@ -133,8 +127,13 @@ export function PracticePage() {
   const [confirmType, setConfirmType] = useState<'exit' | 'submit' | null>(null)
 
   // === 回顾阶段状态 ===
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all')
-  const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>(
+    reviewCache?.reviewFilter || 'all',
+  )
+  const [expandedSet, setExpandedSet] = useState<Set<number>>(() => {
+    if (reviewCache?.expandedSet) return new Set(reviewCache.expandedSet)
+    return new Set()
+  })
 
   // === 本地收藏状态（乐观更新） ===
   const [starredSet, setStarredSet] = useState<Set<string>>(new Set())
@@ -170,12 +169,15 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // 恢复回顾页后清理 sessionStorage
+  // 恢复回顾页后清理缓存（延迟一帧，确保渲染完成）
   useEffect(() => {
-    if (phase === 'review' && questions.length > 0 && results.length > 0) {
-      sessionStorage.removeItem('practice_review_state')
+    if (phase === 'review' && questions.length > 0 && reviewCache) {
+      const cache = reviewCache
+      reviewCache = null
+      // 保留还没用的数据以便重试（比如 questions 为空时的异常情况）
+      // 正常情况下已成功恢复，清理即可
     }
-  }, [phase, questions.length, results.length])
+  }, [])
 
   // === 处理函数 ===
 
@@ -816,12 +818,14 @@ export function PracticePage() {
                         >{isMastered ? '已掌握' : '标记已掌握'}</button>
                         <button
                           onClick={() => {
-                            // 保存完整回顾状态到 sessionStorage（lazy init 同步恢复，避免异步竞争）
-                            sessionStorage.setItem('practice_review_state', JSON.stringify({
+                            // 保存回顾状态到模块级缓存（SPA 路由跳转不丢失，免序列化）
+                            reviewCache = {
                               questions,
                               results,
+                              expandedSet: Array.from(expandedSet),
+                              reviewFilter,
                               timestamp: Date.now(),
-                            }))
+                            }
                             navigate(`/mistakes/${q.id}`)
                           }}
                           className="py-1.5 px-3 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 bg-white"
