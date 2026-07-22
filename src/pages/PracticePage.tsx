@@ -10,14 +10,23 @@ import type { MistakeRecord } from '../models/mistake'
 
 type Phase = 'select' | 'practice' | 'result' | 'review'
 
-/** 回顾页缓存（模块级变量，SPA 路由跳转不丢失，免去序列化/反序列化问题） */
-let reviewCache: {
+/** 回顾页缓存——挂在 window 下，确保任何情况下都不丢失 */
+type ReviewCache = {
   questions: MistakeRecord[]
   results: { userAnswer: string; correct: boolean; timeMs: number }[]
-  expandedSet: number[] // 展开状态的索引
+  expandedSet: number[]
   reviewFilter: 'all' | 'wrong'
   timestamp: number
-} | null = null
+}
+function getReviewCache(): ReviewCache | null {
+  return (window as any).__practiceReviewCache || null
+}
+function setReviewCache(c: ReviewCache) {
+  (window as any).__practiceReviewCache = c
+}
+function clearReviewCache() {
+  delete (window as any).__practiceReviewCache
+}
 
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 const LETTERS = ['A', 'B', 'C', 'D', 'E']
@@ -92,7 +101,8 @@ export function PracticePage() {
 
   // === 阶段状态 ===
   const [phase, setPhase] = useState<Phase>(() => {
-    if (reviewCache && Date.now() - reviewCache.timestamp < 30 * 60 * 1000) return 'review'
+    const c = getReviewCache()
+    if (c && Date.now() - c.timestamp < 30 * 60 * 1000) return 'review'
     return 'select'
   })
   const [mode, setMode] = useState<'practice' | 'exam'>('practice')
@@ -107,7 +117,8 @@ export function PracticePage() {
 
   // === 练习状态 ===
   const [questions, setQuestions] = useState<MistakeRecord[]>(() => {
-    if (reviewCache && Date.now() - reviewCache.timestamp < 30 * 60 * 1000) return reviewCache.questions
+    const c = getReviewCache()
+    if (c && Date.now() - c.timestamp < 30 * 60 * 1000) return c.questions
     return []
   })
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -115,7 +126,8 @@ export function PracticePage() {
   const [showFeedback, setShowFeedback] = useState(false)
   const [examAnswers, setExamAnswers] = useState<Record<number, string>>({})
   const [results, setResults] = useState<{ userAnswer: string; correct: boolean; timeMs: number }[]>(() => {
-    if (reviewCache && Date.now() - reviewCache.timestamp < 30 * 60 * 1000) return reviewCache.results
+    const c = getReviewCache()
+    if (c && Date.now() - c.timestamp < 30 * 60 * 1000) return c.results
     return []
   })
 
@@ -128,10 +140,14 @@ export function PracticePage() {
 
   // === 回顾阶段状态 ===
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>(
-    reviewCache?.reviewFilter || 'all',
+    () => {
+      const c = getReviewCache()
+      return c?.reviewFilter || 'all'
+    },
   )
   const [expandedSet, setExpandedSet] = useState<Set<number>>(() => {
-    if (reviewCache?.expandedSet) return new Set(reviewCache.expandedSet)
+    const c = getReviewCache()
+    if (c?.expandedSet) return new Set(c.expandedSet)
     return new Set()
   })
 
@@ -169,15 +185,12 @@ export function PracticePage() {
 
   const getLatest = useCallback((id: string) => mistakeMap.get(id), [mistakeMap])
 
-  // 恢复回顾页后清理缓存（延迟一帧，确保渲染完成）
+  // 恢复回顾页后清理缓存
   useEffect(() => {
-    if (phase === 'review' && questions.length > 0 && reviewCache) {
-      const cache = reviewCache
-      reviewCache = null
-      // 保留还没用的数据以便重试（比如 questions 为空时的异常情况）
-      // 正常情况下已成功恢复，清理即可
+    if (phase === 'review' && questions.length > 0 && getReviewCache()) {
+      clearReviewCache()
     }
-  }, [])
+  }, [phase, questions.length])
 
   // === 处理函数 ===
 
@@ -818,14 +831,13 @@ export function PracticePage() {
                         >{isMastered ? '已掌握' : '标记已掌握'}</button>
                         <button
                           onClick={() => {
-                            // 保存回顾状态到模块级缓存（SPA 路由跳转不丢失，免序列化）
-                            reviewCache = {
+                            setReviewCache({
                               questions,
                               results,
                               expandedSet: Array.from(expandedSet),
                               reviewFilter,
                               timestamp: Date.now(),
-                            }
+                            })
                             navigate(`/mistakes/${q.id}`)
                           }}
                           className="py-1.5 px-3 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 bg-white"
@@ -850,5 +862,14 @@ export function PracticePage() {
     )
   }
 
-  return null
+  // 兜底：如果状态异常显示恢复提示而不是白屏
+  return (
+    <div className="text-center py-16 animate-fade-in">
+      <p className="text-slate-400 text-sm mb-4">页面状态异常</p>
+      <button
+        onClick={() => { clearReviewCache(); setPhase('select'); setQuestions([]); setResults([]) }}
+        className="px-5 py-2 rounded-xl bg-purple-500 text-white text-sm font-medium"
+      >返回练习首页</button>
+    </div>
+  )
 }
