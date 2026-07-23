@@ -444,49 +444,64 @@ export function MistakeDetailPage() {
                         )}
                       </div>
                     )}
-                    {/* 首次分析（AI做错时展示，并提供纠正入口） */}
-                    {diagResults[selectedDiag].step1Solution && !diagResults.some(d => !d.step1Solution && d.aiCorrect) && (
-                      <button
-                        onClick={handleStep1b}
-                        disabled={diagnosing}
-                        className="w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs font-medium text-amber-600 mb-3 disabled:opacity-50"
-                      >
-                        {diagnosing ? <RefreshCw size={12} className="inline animate-spin mr-1" /> : null}
-                        纠正分析（提供正确答案让AI重新分析）
-                      </button>
-                    )}
-                    {/* 首次分析（AI做错后被纠正时展示） */}
+                    {/* 首次分析（AI 做错时展示，包含全部 STEP1 字段） */}
                     {diagResults[selectedDiag].step1Solution && (
-                      <div className="bg-red-50/50 rounded-lg p-3 mb-3 border border-red-100">
-                        <p className="text-xs font-medium text-red-500 mb-2">🔍 首次分析（AI 答错）</p>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-                            AI 答案：{diagResults[selectedDiag].step1AiAnswer || '?'} ❌
+                      <>
+                        <div className="bg-red-50/50 rounded-lg p-3 mb-3 border border-red-100">
+                          <p className="text-xs font-medium text-red-500 mb-2">🔍 首次分析（AI 答错）</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+                              AI 答案：{diagResults[selectedDiag].step1AiAnswer || '?'} ❌
+                            </span>
+                          </div>
+                          {diagResults[selectedDiag].solution && (
+                            <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{diagResults[selectedDiag].solution}</p>
+                          )}
+                          {diagResults[selectedDiag].traps && (
+                            <p className="text-xs text-slate-500 mt-2">陷阱：{diagResults[selectedDiag].traps}</p>
+                          )}
+                          {diagResults[selectedDiag].rootCause && (
+                            <p className="text-xs text-slate-500 mt-1">错因：{diagResults[selectedDiag].rootCause}</p>
+                          )}
+                          {diagResults[selectedDiag].fix && (
+                            <p className="text-xs text-slate-500 mt-1">方法：{diagResults[selectedDiag].fix}</p>
+                          )}
+                        </div>
+                        {/* 纠正按钮 */}
+                        {!diagResults.some(d => !d.step1Solution && d.aiCorrect) && (
+                          <button
+                            onClick={handleStep1b}
+                            disabled={diagnosing}
+                            className="w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs font-medium text-amber-600 mb-3 disabled:opacity-50"
+                          >
+                            {diagnosing ? <RefreshCw size={12} className="inline animate-spin mr-1" /> : null}
+                            纠正分析（提供正确答案让AI重新分析）
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {/* 纠正后分析 / AI 直接做对时的分析 */}
+                    {!diagResults[selectedDiag].step1Solution && (
+                      <>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded-full',
+                            mistake.correctAnswer && diagResults[selectedDiag].aiAnswer === mistake.correctAnswer.trim()
+                              ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}>
+                            AI 答案：{diagResults[selectedDiag].aiAnswer}
+                            {mistake.correctAnswer && diagResults[selectedDiag].aiAnswer === mistake.correctAnswer.trim() ? ' ✅' : ' ❌'}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{diagResults[selectedDiag].step1Solution}</p>
-                        {diagResults[selectedDiag].step1RootCause && (
-                          <p className="text-xs text-slate-500 mt-2">错因：{diagResults[selectedDiag].step1RootCause}</p>
+                        {diagResults[selectedDiag].solution && (
+                          <div><p className="text-xs text-purple-400 font-medium mb-1">逐项解析</p><p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{diagResults[selectedDiag].solution}</p></div>
                         )}
-                      </div>
+                        {diagResults[selectedDiag].traps && (
+                          <div><p className="text-xs text-purple-400 font-medium mb-1">陷阱</p><p className="text-sm text-slate-700">{diagResults[selectedDiag].traps}</p></div>
+                        )}
+                        <div><p className="text-xs text-purple-400 font-medium mb-1">错因</p><p className="text-sm text-slate-700">{diagResults[selectedDiag].rootCause}</p></div>
+                        <div><p className="text-xs text-purple-400 font-medium mb-1">方法</p><p className="text-sm text-slate-700">{diagResults[selectedDiag].fix}</p></div>
+                      </>
                     )}
-                    {/* 最终分析（STEP1B 纠正后或 STEP1 直接正确的） */}
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={cn('text-xs px-1.5 py-0.5 rounded-full',
-                        mistake.correctAnswer && diagResults[selectedDiag].aiAnswer === mistake.correctAnswer.trim()
-                          ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}>
-                        AI 答案：{diagResults[selectedDiag].aiAnswer}
-                        {mistake.correctAnswer && diagResults[selectedDiag].aiAnswer === mistake.correctAnswer.trim() ? ' ✅' : ' ❌'}
-                      </span>
-                    </div>
-                    {diagResults[selectedDiag].solution && (
-                      <div><p className="text-xs text-purple-400 font-medium mb-1">逐项解析</p><p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{diagResults[selectedDiag].solution}</p></div>
-                    )}
-                    {diagResults[selectedDiag].traps && (
-                      <div><p className="text-xs text-purple-400 font-medium mb-1">陷阱</p><p className="text-sm text-slate-700">{diagResults[selectedDiag].traps}</p></div>
-                    )}
-                    <div><p className="text-xs text-purple-400 font-medium mb-1">错因</p><p className="text-sm text-slate-700">{diagResults[selectedDiag].rootCause}</p></div>
-                    <div><p className="text-xs text-purple-400 font-medium mb-1">方法</p><p className="text-sm text-slate-700">{diagResults[selectedDiag].fix}</p></div>
                   </>
                 )}
                 <p className="text-[10px] text-purple-300">此分析由 AI 生成，仅供参考</p>
