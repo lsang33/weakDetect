@@ -81,6 +81,9 @@ export function MistakeDetailPage() {
       rootCause: result.rootCause,
       fix: result.fix,
       analyzedAt: new Date(),
+      step1Solution: result.step1Solution,
+      step1RootCause: result.step1RootCause,
+      step1AiAnswer: result.step1AiAnswer,
     }
   }
 
@@ -415,6 +418,22 @@ export function MistakeDetailPage() {
                         )}
                       </div>
                     )}
+                    {/* 首次分析（AI做错后被纠正时展示） */}
+                    {diagResults[selectedDiag].step1Solution && (
+                      <div className="bg-red-50/50 rounded-lg p-3 mb-3 border border-red-100">
+                        <p className="text-xs font-medium text-red-500 mb-2">🔍 首次分析（AI 答错）</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+                            AI 答案：{diagResults[selectedDiag].step1AiAnswer || '?'} ❌
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{diagResults[selectedDiag].step1Solution}</p>
+                        {diagResults[selectedDiag].step1RootCause && (
+                          <p className="text-xs text-slate-500 mt-2">错因：{diagResults[selectedDiag].step1RootCause}</p>
+                        )}
+                      </div>
+                    )}
+                    {/* 最终分析（STEP1B 纠正后或 STEP1 直接正确的） */}
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn('text-xs px-1.5 py-0.5 rounded-full',
                         mistake.correctAnswer && diagResults[selectedDiag].aiAnswer === mistake.correctAnswer.trim()

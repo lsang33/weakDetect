@@ -13,6 +13,10 @@ export interface QuickDiagnosis {
   rootCause: string
   fix: string
   analyzedAt: Date
+  /** STEP1 首次分析（AI做错后被纠正时有值） */
+  step1Solution?: string
+  step1RootCause?: string
+  step1AiAnswer?: string
 }
 
 /** AI 批量分析后的归类信息 */

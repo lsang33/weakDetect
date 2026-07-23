@@ -5,6 +5,10 @@ export interface DiagnosisResult {
   knowledgePoint: string; subCategory: string; module: string
   solution: string; traps: string
   userErrorStep: string; rootCause: string; fix: string
+  /** STEP1 原始数据（STEP1B纠正前保留，供UI展示首次分析过程） */
+  step1Solution?: string
+  step1RootCause?: string
+  step1AiAnswer?: string
   rawStep1?: string; rawStep1b?: string
 }
 
@@ -138,12 +142,17 @@ export async function diagnose(
   const derived = deriveAnswer(step1.solution, questionStem)
   if (derived && derived !== aiAnswer) aiAnswer = derived
 
+  // 快照 STEP1 原始数据（STEP1B 覆盖前保留）
+  const step1Solution = step1.solution
+  const step1RootCause = step1.userErrorCause
+  const step1AiAnswer = aiAnswer
+
   if (aiAnswer !== cleanAnswer(correctAnswer)) {
     step1bCalled = true
     s1b = await callApi([
       { role: 'system', content: sysMsg },
       { role: 'user', content: STEP1B_PROMPT(moduleName, questionStem, correctAnswer, myAnswer) },
-    ], 3000)
+    ], 6000)
     const fixup = parseJson<Step1Result>(s1b, { ...DEFAULT_STEP1, aiAnswer: correctAnswer })
     // Step1b 解析失败时不覆盖 Step1 原有的有效内容
     if (fixup.solution !== '解析异常') solution = fixup.solution
@@ -154,7 +163,7 @@ export async function diagnose(
   }
 
   return {
-    aiAnswer, aiCorrect: true, style, step1bCalled, originalAiAnswer,
+    aiAnswer, aiCorrect: step1bCalled ? false : true, style, step1bCalled, originalAiAnswer,
     difficulty: step1.difficulty,
     examPoint: step1.examPoint,
     keyDifferentiator: step1.keyDifferentiator,
@@ -165,7 +174,10 @@ export async function diagnose(
     rootCause: userErrorCause || '',
     fix: improvementMethod || '',
     userErrorStep: '未知',
-    rawStep1: s1.slice(0, 500),
-    rawStep1b: step1bCalled ? s1b.slice(0, 500) : undefined,
+    step1Solution: step1bCalled ? step1Solution : undefined,
+    step1RootCause: step1bCalled ? step1RootCause : undefined,
+    step1AiAnswer: step1bCalled ? step1AiAnswer : undefined,
+    rawStep1: s1,
+    rawStep1b: step1bCalled ? s1b : undefined,
   }
 }
