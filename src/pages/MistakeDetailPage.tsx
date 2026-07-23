@@ -12,8 +12,8 @@ import type { ImprovementResult } from '../models/exam'
 import type { ImprovementAttempt, UpdateMistakeInput, QuickDiagnosis } from '../models/mistake'
 import { CameraCapture } from '../components/CameraCapture'
 import type { OcrResult } from '../services/ocrService'
-import { diagnoseMistake as qwenDiagnose } from '../services/diagnoseService'
-import { deepseekDiagnose } from '../services/deepseekService'
+import { diagnoseMistake as qwenDiagnose, diagnoseMistakeStep1b as qwenDiagnoseStep1b } from '../services/diagnoseService'
+import { deepseekDiagnose, deepseekDiagnoseStep1b } from '../services/deepseekService'
 import { cn } from '../lib/cn'
 import { mistakeRepository } from '../db'
 
@@ -108,6 +108,32 @@ export function MistakeDetailPage() {
       setExpandAi(true)
     } catch (err) {
       setDiagError(err instanceof Error ? err.message : '诊断失败')
+    }
+    setDiagnosing(false)
+  }
+
+  /** 用户手动触发纠正分析（已知正确答案后重分析） */
+  async function handleStep1b() {
+    if (!mistake || !mistake.questionStem || !mistake.correctAnswer) return
+    const diagModel = localStorage.getItem('diag_model') || 'qwen'
+    const apiKey = localStorage.getItem(diagModel === 'deepseek' ? 'deepseek_key' : 'dashscope_key')
+    if (!apiKey) { setDiagError('请先在设置页填写 API Key'); return }
+    setDiagnosing(true)
+    setDiagError('')
+    try {
+      const modName = MODULE_LABELS[mistake.module]
+      const dsModel = localStorage.getItem('ds_model') || 'reasoner'
+      const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
+      const result = diagModel === 'deepseek'
+        ? await deepseekDiagnoseStep1b(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
+        : await qwenDiagnoseStep1b(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)
+      const diag = toQuickDiag(result)
+      setDiagResults(prev => [...prev, diag])
+      setSelectedDiag(diagResults.length)
+      setExpandAi(true)
+      await update(mistake!.id, { quickDiagnosis: diag })
+    } catch (err) {
+      setDiagError(err instanceof Error ? err.message : '纠正分析失败')
     }
     setDiagnosing(false)
   }
@@ -417,6 +443,17 @@ export function MistakeDetailPage() {
                           </div>
                         )}
                       </div>
+                    )}
+                    {/* 首次分析（AI做错时展示，并提供纠正入口） */}
+                    {diagResults[selectedDiag].step1Solution && !diagResults.some(d => !d.step1Solution && d.aiCorrect) && (
+                      <button
+                        onClick={handleStep1b}
+                        disabled={diagnosing}
+                        className="w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs font-medium text-amber-600 mb-3 disabled:opacity-50"
+                      >
+                        {diagnosing ? <RefreshCw size={12} className="inline animate-spin mr-1" /> : null}
+                        纠正分析（提供正确答案让AI重新分析）
+                      </button>
                     )}
                     {/* 首次分析（AI做错后被纠正时展示） */}
                     {diagResults[selectedDiag].step1Solution && (

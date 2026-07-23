@@ -1,7 +1,7 @@
 import compactPrompt from '../prompts/compact.txt'
 import detailedPrompt from '../prompts/detailed.txt'
 import freePrompt from '../prompts/free.txt'
-import { diagnose, BASE_SYSTEM, type DiagnosisResult } from './diagnosisCore'
+import { diagnose, diagnoseStep1b, BASE_SYSTEM, type DiagnosisResult } from './diagnosisCore'
 
 export type { DiagnosisResult }
 
@@ -38,6 +38,17 @@ export async function diagnoseMistake(
   moduleName: string, apiKey: string, style = 'compact',
 ): Promise<DiagnosisResult> {
   return diagnose(
+    questionStem, correctAnswer, myAnswer, moduleName, style,
+    (messages, maxTokens) => callQwen(messages, apiKey, maxTokens),
+    SYSTEM_PROMPTS[style] || SYSTEM_PROMPTS.compact,
+  )
+}
+
+export async function diagnoseMistakeStep1b(
+  questionStem: string, correctAnswer: string, myAnswer: string | undefined,
+  moduleName: string, apiKey: string, style = 'compact',
+): Promise<DiagnosisResult> {
+  return diagnoseStep1b(
     questionStem, correctAnswer, myAnswer, moduleName, style,
     (messages, maxTokens) => callQwen(messages, apiKey, maxTokens),
     SYSTEM_PROMPTS[style] || SYSTEM_PROMPTS.compact,

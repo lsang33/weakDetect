@@ -1,7 +1,7 @@
 import compactPrompt from '../prompts/compact.txt'
 import detailedPrompt from '../prompts/detailed.txt'
 import freePrompt from '../prompts/free.txt'
-import { diagnose, BASE_SYSTEM, type DiagnosisResult } from './diagnosisCore'
+import { diagnose, diagnoseStep1b, BASE_SYSTEM, type DiagnosisResult } from './diagnosisCore'
 
 const DS_URL = 'https://api.deepseek.com/v1/chat/completions'
 
@@ -36,6 +36,17 @@ export async function deepseekDiagnose(
   moduleName: string, apiKey: string, style = 'compact', dsModel = 'deepseek-reasoner',
 ): Promise<DiagnosisResult> {
   return diagnose(
+    questionStem, correctAnswer, myAnswer, moduleName, style,
+    (messages, maxTokens) => callDS(messages, apiKey, maxTokens, dsModel),
+    SYSTEM_STYLES[style] || SYSTEM_STYLES.compact,
+  )
+}
+
+export async function deepseekDiagnoseStep1b(
+  questionStem: string, correctAnswer: string, myAnswer: string | undefined,
+  moduleName: string, apiKey: string, style = 'compact', dsModel = 'deepseek-reasoner',
+): Promise<DiagnosisResult> {
+  return diagnoseStep1b(
     questionStem, correctAnswer, myAnswer, moduleName, style,
     (messages, maxTokens) => callDS(messages, apiKey, maxTokens, dsModel),
     SYSTEM_STYLES[style] || SYSTEM_STYLES.compact,

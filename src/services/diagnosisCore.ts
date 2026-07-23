@@ -142,28 +142,10 @@ export async function diagnose(
   const derived = deriveAnswer(step1.solution, questionStem)
   if (derived && derived !== aiAnswer) aiAnswer = derived
 
-  // 快照 STEP1 原始数据（STEP1B 覆盖前保留）
-  const step1Solution = step1.solution
-  const step1RootCause = step1.userErrorCause
-  const step1AiAnswer = aiAnswer
-
-  if (aiAnswer !== cleanAnswer(correctAnswer)) {
-    step1bCalled = true
-    s1b = await callApi([
-      { role: 'system', content: sysMsg },
-      { role: 'user', content: STEP1B_PROMPT(moduleName, questionStem, correctAnswer, myAnswer) },
-    ], 6000)
-    const fixup = parseJson<Step1Result>(s1b, { ...DEFAULT_STEP1, aiAnswer: correctAnswer })
-    // Step1b 解析失败时不覆盖 Step1 原有的有效内容
-    if (fixup.solution !== '解析异常') solution = fixup.solution
-    if (fixup.traps !== '解析异常') traps = fixup.traps
-    if (fixup.userErrorCause) userErrorCause = fixup.userErrorCause
-    if (fixup.improvementMethod) improvementMethod = fixup.improvementMethod
-    aiAnswer = cleanAnswer(correctAnswer)
-  }
+  const aiCorrect = aiAnswer === cleanAnswer(correctAnswer)
 
   return {
-    aiAnswer, aiCorrect: step1bCalled ? false : true, style, step1bCalled, originalAiAnswer,
+    aiAnswer, aiCorrect, style, step1bCalled: false, originalAiAnswer,
     difficulty: step1.difficulty,
     examPoint: step1.examPoint,
     keyDifferentiator: step1.keyDifferentiator,
@@ -174,10 +156,43 @@ export async function diagnose(
     rootCause: userErrorCause || '',
     fix: improvementMethod || '',
     userErrorStep: '未知',
-    step1Solution: step1bCalled ? step1Solution : undefined,
-    step1RootCause: step1bCalled ? step1RootCause : undefined,
-    step1AiAnswer: step1bCalled ? step1AiAnswer : undefined,
+    step1Solution: aiCorrect ? undefined : step1.solution,
+    step1RootCause: aiCorrect ? undefined : step1.userErrorCause,
+    step1AiAnswer: aiCorrect ? undefined : aiAnswer,
     rawStep1: s1,
-    rawStep1b: step1bCalled ? s1b : undefined,
+  }
+}
+
+/** 用户手动触发的纠正分析（已知正确答案后重新诊断） */
+export async function diagnoseStep1b(
+  questionStem: string, correctAnswer: string, myAnswer: string | undefined,
+  moduleName: string, style: string,
+  callApi: (messages: { role: string; content: string }[], maxTokens: number) => Promise<string>,
+  sysMsg: string,
+): Promise<DiagnosisResult> {
+  const s1b = await callApi([
+    { role: 'system', content: sysMsg },
+    { role: 'user', content: STEP1B_PROMPT(moduleName, questionStem, correctAnswer, myAnswer) },
+  ], 6000)
+  const fixup = parseJson<Step1Result>(s1b, { ...DEFAULT_STEP1, aiAnswer: correctAnswer })
+
+  return {
+    aiAnswer: cleanAnswer(correctAnswer),
+    aiCorrect: true,
+    style,
+    step1bCalled: true,
+    originalAiAnswer: correctAnswer,
+    difficulty: fixup.difficulty !== '未知' ? fixup.difficulty : '',
+    examPoint: fixup.examPoint !== '未知' ? fixup.examPoint : '',
+    keyDifferentiator: fixup.keyDifferentiator !== '未知' ? fixup.keyDifferentiator : '',
+    knowledgePoint: fixup.knowledgePoint || '',
+    subCategory: fixup.subCategory || '',
+    module: fixup.module || '',
+    solution: fixup.solution !== '解析异常' ? fixup.solution : '',
+    traps: fixup.traps !== '解析异常' ? fixup.traps : '',
+    rootCause: fixup.userErrorCause || '',
+    fix: fixup.improvementMethod || '',
+    userErrorStep: '未知',
+    rawStep1b: s1b,
   }
 }
