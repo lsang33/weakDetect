@@ -27,15 +27,21 @@ export function parseJson<T>(text: string, fallback: T): T {
 export const cleanAnswer = (a: string) => a.trim().replace(/[. (（].*$/, '')
 
 export function deriveAnswer(solution: string, questionStem: string): string | null {
+  // 先尝试通用答案模式（适用于所有题型，不只是多部分判断题）
+  const ans = solution.match(/答案[是为：:]\s*([A-D])/); if (ans) return ans[1]
+  const pick = solution.match(/[选应]为\s*([A-D])/); if (pick) return pick[1]
+  const pick2 = solution.match(/[故应]选\s*([A-D])/); if (pick2) return pick2[1]
+
+  // 多部分判断题（①②③ + 对/错）
   const items: { num: string; correct: boolean }[] = []
   const re = /([①-⑧])\s*(对|错)/g; let m: RegExpExecArray | null
   while ((m = re.exec(solution)) !== null) items.push({ num: m[1], correct: m[2] === '对' })
-  if (items.length < 2) return null
-  const ans = solution.match(/答案[是为：:]\s*([A-D])/); if (ans) return ans[1]
-  const pick = solution.match(/[选应]为\s*([A-D])/); if (pick) return pick[1]
-  const correctNums = items.filter(i => i.correct).map(i => i.num).join('')
-  const omre = /([A-D])\s*[.、]\s*([①②③④⑤⑥⑦⑧]+)/g; let om: RegExpExecArray | null
-  while ((om = omre.exec(questionStem)) !== null) if (om[2] === correctNums) return om[1]
+  if (items.length >= 2) {
+    const correctNums = items.filter(i => i.correct).map(i => i.num).join('')
+    const omre = /([A-D])\s*[.、]\s*([①②③④⑤⑥⑦⑧]+)/g; let om: RegExpExecArray | null
+    while ((om = omre.exec(questionStem)) !== null) if (om[2] === correctNums) return om[1]
+  }
+
   return null
 }
 
