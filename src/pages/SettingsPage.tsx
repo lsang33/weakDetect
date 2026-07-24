@@ -6,6 +6,9 @@ import { cn } from '../lib/cn'
 import { MODULE_LABELS } from '../lib/constants'
 import { validateQwenKey } from '../services/diagnoseService'
 import { validateDeepseekKey } from '../services/deepseekService'
+import type { MistakeRecord } from '../models/mistake'
+import type { ReviewPlan } from '../models/review'
+import type { AnalysisReport, ModuleAnalysis, PracticeSession, PracticeRecord } from '../models/analytics'
 
 function ApiSettings() {
   const [dashScopeKey, setDashScopeKey] = useState('')
@@ -175,9 +178,25 @@ export function SettingsPage() {
 
   async function handleExport() {
     try {
-      const mistakesData = await db.mistakes.toArray()
-      const plansData = await db.reviewPlans.toArray()
-      const json = JSON.stringify({ mistakes: mistakesData, reviewPlans: plansData }, null, 2)
+      const [mistakesData, plansData, reportsData, moduleAnalysesData, sessionsData, recordsData] =
+        await Promise.all([
+          db.mistakes.toArray(),
+          db.reviewPlans.toArray(),
+          db.analysisReports.toArray(),
+          db.moduleAnalyses.toArray(),
+          db.practiceSessions.toArray(),
+          db.practiceRecords.toArray(),
+        ])
+      const json = JSON.stringify({
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        mistakes: mistakesData,
+        reviewPlans: plansData,
+        analysisReports: reportsData,
+        moduleAnalyses: moduleAnalysesData,
+        practiceSessions: sessionsData,
+        practiceRecords: recordsData,
+      }, null, 2)
       const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -185,11 +204,40 @@ export function SettingsPage() {
       a.download = `错题分析备份_${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
-      setMessage('✅ 数据导出成功')
+      const parts = [`${mistakesData.length} 条错题`]
+      if (recordsData.length) parts.push(`${recordsData.length} 条练习记录`)
+      if (moduleAnalysesData.length) parts.push(`${moduleAnalysesData.length} 条分析`)
+      setMessage(`✅ 数据导出成功（${parts.join('，')}）`)
     } catch {
       setMessage('❌ 导出失败')
     }
     setTimeout(() => setMessage(''), 3000)
+  }
+
+  /** 递归将日期字符串转为 Date 对象 */
+  function reviveDates(obj: unknown): unknown {
+    if (obj === null || obj === undefined) return obj
+    if (typeof obj === 'string') {
+      // ISO 日期字符串 → Date
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(obj)) {
+        return new Date(obj)
+      }
+      return obj
+    }
+    if (Array.isArray(obj)) return obj.map(reviveDates)
+    if (typeof obj === 'object') {
+      const result: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+        // 已知的日期字段名
+        if (['createdAt', 'reviewedAt', 'analyzedAt', 'attemptedAt', 'completedAt', 'date', 'lastMistakeDate', 'weekStart'].includes(key) && typeof value === 'string') {
+          result[key] = new Date(value)
+        } else {
+          result[key] = reviveDates(value)
+        }
+      }
+      return result
+    }
+    return obj
   }
 
   async function handleImport() {
@@ -202,26 +250,51 @@ export function SettingsPage() {
 
       try {
         const text = await file.text()
-        const data = JSON.parse(text)
+        const raw = JSON.parse(text)
+        const data = reviveDates(raw) as Record<string, unknown>
+        const counts: string[] = []
 
+        // 错题
         if (data.mistakes && Array.isArray(data.mistakes)) {
           await db.mistakes.clear()
-          for (const m of data.mistakes) {
-            await db.mistakes.add({
-              ...m,
-              createdAt: new Date(m.createdAt),
-              reviewedAt: m.reviewedAt ? new Date(m.reviewedAt) : undefined,
-            })
-          }
+          await db.mistakes.bulkAdd(data.mistakes as MistakeRecord[])
+          counts.push(`${(data.mistakes as unknown[]).length} 条错题`)
         }
+
+        // 复习计划
         if (data.reviewPlans && Array.isArray(data.reviewPlans)) {
           await db.reviewPlans.clear()
-          for (const p of data.reviewPlans) {
-            await db.reviewPlans.add(p)
-          }
+          await db.reviewPlans.bulkAdd(data.reviewPlans as ReviewPlan[])
         }
-        setMessage(`✅ 导入成功！${data.mistakes?.length ?? 0} 条错题，即将刷新`)
-        setTimeout(() => window.location.reload(), 800)
+
+        // 分析报告
+        if (data.analysisReports && Array.isArray(data.analysisReports)) {
+          await db.analysisReports.clear()
+          await db.analysisReports.bulkAdd(data.analysisReports as AnalysisReport[])
+        }
+
+        // 模块分析
+        if (data.moduleAnalyses && Array.isArray(data.moduleAnalyses)) {
+          await db.moduleAnalyses.clear()
+          await db.moduleAnalyses.bulkAdd(data.moduleAnalyses as ModuleAnalysis[])
+          counts.push(`${(data.moduleAnalyses as unknown[]).length} 条分析`)
+        }
+
+        // 练习会话
+        if (data.practiceSessions && Array.isArray(data.practiceSessions)) {
+          await db.practiceSessions.clear()
+          await db.practiceSessions.bulkAdd(data.practiceSessions as PracticeSession[])
+        }
+
+        // 练习记录（做题记录）
+        if (data.practiceRecords && Array.isArray(data.practiceRecords)) {
+          await db.practiceRecords.clear()
+          await db.practiceRecords.bulkAdd(data.practiceRecords as PracticeRecord[])
+          counts.push(`${(data.practiceRecords as unknown[]).length} 条练习记录`)
+        }
+
+        setMessage(`✅ 导入成功！${counts.join('，')}，即将刷新`)
+        setTimeout(() => window.location.reload(), 1000)
       } catch {
         setMessage('❌ 文件格式错误')
       }
