@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History, X } from 'lucide-react'
+import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History, X, ArrowLeft } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { mistakeRepository, practiceRecordRepository } from '../db'
 import { MODULE_LABELS, MODULE_COLORS } from '../lib/constants'
@@ -817,6 +817,14 @@ export function PracticePage() {
 
     return (
       <div className="space-y-3 animate-fade-in pb-4">
+        {/* 顶部返回 */}
+        <button
+          onClick={() => setPhase('result')}
+          className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
+        >
+          <ArrowLeft size={14} /> 返回结果
+        </button>
+
         {/* 统计概览 */}
         <div className="flex items-center gap-3 text-xs text-slate-500 bg-white rounded-xl px-4 py-2.5 border border-slate-100">
           <span>🎯 {correctCount}/{results.length} 正确</span>
@@ -938,7 +946,7 @@ export function PracticePage() {
         <div className="flex gap-2">
           <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white">
-            返回
+            退出
           </button>
           <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
             className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
