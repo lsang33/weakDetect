@@ -207,7 +207,7 @@ export function SettingsPage() {
   async function handleShare() {
     try {
       const { blob, fileName, summary } = await buildExportData()
-      if (!navigator.share || !navigator.canShare?.({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+      if (!navigator.share) {
         setMessage('❌ 当前浏览器不支持分享，请使用「下载到本地」')
         setTimeout(() => setMessage(''), 3000)
         return
@@ -219,7 +219,7 @@ export function SettingsPage() {
       setMessage(`✅ 已分享（${summary}）`)
     } catch (err: any) {
       if (err?.name === 'AbortError') return
-      setMessage('❌ 分享失败')
+      setMessage('❌ 分享失败，请使用「下载到本地」')
     }
     setTimeout(() => setMessage(''), 3000)
   }
