@@ -222,7 +222,6 @@ export function SettingsPage() {
       })
       setMessage(`✅ 已分享（${summary}）`)
     } catch (err: any) {
-      if (err?.name === 'AbortError') return
       setMessage('❌ 分享失败，请使用「下载到本地」')
     } finally {
       setSharing(false)
