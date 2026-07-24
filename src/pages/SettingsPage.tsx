@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, FileText, Share2 } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { db } from '../db/database'
@@ -177,6 +177,9 @@ export function SettingsPage() {
   const [message, setMessage] = useState('')
   const [sharing, setSharing] = useState(false)
 
+  // 预缓存导出数据 — 确保分享时 navigator.share() 能立即调用，不因异步查询丢失用户手势
+  const exportCache = useRef<{ blob: Blob; fileName: string; summary: string } | null>(null)
+
   async function buildExportData() {
     const [mistakesData, plansData, reportsData, moduleAnalysesData, sessionsData, recordsData] =
       await Promise.all([
@@ -205,41 +208,32 @@ export function SettingsPage() {
     return { blob, fileName, summary: parts.join('，') }
   }
 
+  useEffect(() => {
+    buildExportData().then(data => { exportCache.current = data })
+  }, [])
+
+  async function getExportData() {
+    if (!exportCache.current) exportCache.current = await buildExportData()
+    return exportCache.current
+  }
+
   async function handleShare() {
     setSharing(true)
     setMessage('')
     try {
-      const { blob, fileName, summary } = await buildExportData()
+      const { blob, fileName, summary } = await getExportData()
 
       if (!navigator.share) {
-        alert('诊断：navigator.share 不存在')
         setMessage('❌ 浏览器不支持分享')
         return
       }
 
       const file = new File([blob], fileName, { type: 'application/json' })
-      const shareData = { files: [file], title: '错题数据备份' }
-
-      if (navigator.canShare) {
-        try {
-          const ok = navigator.canShare(shareData)
-          if (!ok) {
-            alert('诊断：navigator.canShare 返回 false（不支持分享文件）')
-            setMessage('❌ 浏览器不支持分享文件')
-            return
-          }
-        } catch (e: any) {
-          alert(`诊断：canShare 抛异常\n${e?.name}: ${e?.message}`)
-          setMessage(`❌ canShare 异常: ${e?.name}: ${e?.message}`)
-          return
-        }
-      }
-
-      await navigator.share(shareData)
+      await navigator.share({ files: [file], title: '错题数据备份' })
       setMessage(`✅ 已分享（${summary}）`)
       setTimeout(() => setMessage(''), 3000)
     } catch (err: any) {
-      alert(`诊断：share 调用失败\n错误类型: ${err?.name || 'unknown'}\n错误信息: ${err?.message || String(err)}`)
+      if (err?.name === 'AbortError') return
       setMessage(`❌ 分享失败 [${err?.name || 'unknown'}]: ${err?.message || String(err)}`)
     } finally {
       setSharing(false)
@@ -248,7 +242,7 @@ export function SettingsPage() {
 
   async function handleDownload() {
     try {
-      const { blob, fileName, summary } = await buildExportData()
+      const { blob, fileName, summary } = await getExportData()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
