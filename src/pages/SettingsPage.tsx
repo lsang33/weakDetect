@@ -209,37 +209,37 @@ export function SettingsPage() {
     setSharing(true)
     setMessage('')
     try {
-      // 1. 准备数据
       const { blob, fileName, summary } = await buildExportData()
 
-      // 2. 检查 API 存在
       if (!navigator.share) {
-        setMessage('❌ 浏览器不支持分享（navigator.share 不存在）')
+        alert('诊断：navigator.share 不存在')
+        setMessage('❌ 浏览器不支持分享')
         return
       }
 
       const file = new File([blob], fileName, { type: 'application/json' })
       const shareData = { files: [file], title: '错题数据备份' }
 
-      // 3. 检查是否支持分享文件
       if (navigator.canShare) {
         try {
-          if (!navigator.canShare(shareData)) {
-            setMessage('❌ 浏览器不支持分享文件（canShare 返回 false）')
+          const ok = navigator.canShare(shareData)
+          if (!ok) {
+            alert('诊断：navigator.canShare 返回 false（不支持分享文件）')
+            setMessage('❌ 浏览器不支持分享文件')
             return
           }
         } catch (e: any) {
-          setMessage(`❌ canShare 检查异常: ${e?.name || 'Error'}: ${e?.message || e}`)
+          alert(`诊断：canShare 抛异常\n${e?.name}: ${e?.message}`)
+          setMessage(`❌ canShare 异常: ${e?.name}: ${e?.message}`)
           return
         }
       }
 
-      // 4. 调用分享
       await navigator.share(shareData)
       setMessage(`✅ 已分享（${summary}）`)
       setTimeout(() => setMessage(''), 3000)
     } catch (err: any) {
-      // 报错不清除，让用户看到具体原因
+      alert(`诊断：share 调用失败\n错误类型: ${err?.name || 'unknown'}\n错误信息: ${err?.message || String(err)}`)
       setMessage(`❌ 分享失败 [${err?.name || 'unknown'}]: ${err?.message || String(err)}`)
     } finally {
       setSharing(false)
