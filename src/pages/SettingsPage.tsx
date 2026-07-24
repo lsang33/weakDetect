@@ -175,6 +175,7 @@ function ApiSettings() {
 export function SettingsPage() {
   const mistakes = useMistakes()
   const [message, setMessage] = useState('')
+  const [sharing, setSharing] = useState(false)
 
   async function buildExportData() {
     const [mistakesData, plansData, reportsData, moduleAnalysesData, sessionsData, recordsData] =
@@ -205,26 +206,28 @@ export function SettingsPage() {
   }
 
   async function handleShare() {
+    setSharing(true)
     try {
       const { blob, fileName, summary } = await buildExportData()
       if (!navigator.share) {
-        handleDownload()
+        setMessage('❌ 当前浏览器不支持分享，请使用「下载到本地」')
+        setTimeout(() => setMessage(''), 3000)
         return
       }
       const file = new File([blob], fileName, { type: 'application/json' })
-      // 超时保护：share API 不应挂起超过 5 秒
-      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-      await Promise.race([
-        navigator.share({ files: [file], text: `错题数据备份（${summary}）`, title: '错题数据备份' }),
-        timeout,
-      ])
+      await navigator.share({
+        files: [file],
+        text: `错题数据备份（${summary}）`,
+        title: '错题数据备份',
+      })
       setMessage(`✅ 已分享（${summary}）`)
     } catch (err: any) {
       if (err?.name === 'AbortError') return
-      // 分享失败，自动回退到下载
-      handleDownload()
+      setMessage('❌ 分享失败，请使用「下载到本地」')
+    } finally {
+      setSharing(false)
+      setTimeout(() => setMessage(''), 3000)
     }
-    setTimeout(() => setMessage(''), 3000)
   }
 
   async function handleDownload() {
@@ -426,9 +429,10 @@ export function SettingsPage() {
         <h2 className="text-sm font-semibold text-slate-800 px-4 pt-4 pb-2">数据管理</h2>
         <button
           onClick={handleShare}
-          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 border-b border-slate-50"
+          disabled={sharing}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 border-b border-slate-50 disabled:opacity-60"
         >
-          <Share2 size={18} className="text-blue-500" />
+          {sharing ? <Loader2 size={18} className="text-blue-500 animate-spin" /> : <Share2 size={18} className="text-blue-500" />}
           分享
         </button>
         <button
