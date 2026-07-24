@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History } from 'lucide-react'
+import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History, X } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { mistakeRepository, practiceRecordRepository } from '../db'
 import { MODULE_LABELS, MODULE_COLORS } from '../lib/constants'
@@ -545,42 +545,54 @@ export function PracticePage() {
                 const correctCount = r.results.filter(res => res.correct).length
                 const totalMs = r.results.reduce((s, res) => s + (res.timeMs || 0), 0)
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    onClick={() => {
-                      // 从当前数据库中查找题目（可能已被删除）
-                      const qs = r.questionIds
-                        .map(id => mistakeMap.get(id))
-                        .filter(Boolean) as MistakeRecord[]
-                      if (qs.length === 0) return
-                      setQuestions(qs)
-                      setResults(r.results)
-                      setMode(r.mode)
-                      setPhase('review')
-                      setReviewFilter('all')
-                      const s = new Set<number>()
-                      r.results.forEach((res, i) => { if (!res.correct) s.add(i) })
-                      setExpandedSet(s)
-                    }}
-                    className="w-full bg-white rounded-xl px-4 py-2.5 border border-slate-100 shadow-sm text-left active:bg-slate-50"
+                    className="w-full bg-white rounded-xl border border-slate-100 shadow-sm flex items-center active:bg-slate-50"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">
-                          {new Date(r.createdAt).toLocaleDateString('zh-CN')} {new Date(r.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full',
-                          r.mode === 'exam' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600')}>
-                          {r.mode === 'exam' ? '考试' : '刷题'}
-                        </span>
+                    <button
+                      onClick={() => {
+                        const qs = r.questionIds
+                          .map(id => mistakeMap.get(id))
+                          .filter(Boolean) as MistakeRecord[]
+                        if (qs.length === 0) return
+                        setQuestions(qs)
+                        setResults(r.results)
+                        setMode(r.mode)
+                        setPhase('review')
+                        setReviewFilter('all')
+                        const s = new Set<number>()
+                        r.results.forEach((res, i) => { if (!res.correct) s.add(i) })
+                        setExpandedSet(s)
+                      }}
+                      className="flex-1 px-4 py-2.5 text-left min-w-0"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs text-slate-500">
+                            {new Date(r.createdAt).toLocaleDateString('zh-CN')} {new Date(r.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full shrink-0',
+                            r.mode === 'exam' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600')}>
+                            {r.mode === 'exam' ? '考试' : '刷题'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-medium text-slate-700">{correctCount}/{r.results.length}</span>
+                          <span className="text-slate-400">{Math.round(correctCount / r.results.length * 100)}%</span>
+                          {totalMs > 0 && <span className="text-slate-400">{formatTimeShort(totalMs)}</span>}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-medium text-slate-700">{correctCount}/{r.results.length}</span>
-                        <span className="text-slate-400">{Math.round(correctCount / r.results.length * 100)}%</span>
-                        {totalMs > 0 && <span className="text-slate-400">{formatTimeShort(totalMs)}</span>}
-                      </div>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await practiceRecordRepository.delete(r.id)
+                      }}
+                      className="px-3 py-2.5 text-slate-300 hover:text-red-500 shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 )
               })}
             </div>
