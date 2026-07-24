@@ -229,7 +229,7 @@ export function SettingsPage() {
       const result: Record<string, unknown> = {}
       for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
         // 已知的日期字段名
-        if (['createdAt', 'reviewedAt', 'analyzedAt', 'attemptedAt', 'completedAt', 'date', 'lastMistakeDate', 'weekStart'].includes(key) && typeof value === 'string') {
+        if (['createdAt', 'reviewedAt', 'analyzedAt', 'attemptedAt', 'completedAt', 'date', 'lastMistakeDate', 'weekStart', 'updatedAt'].includes(key) && typeof value === 'string') {
           result[key] = new Date(value)
         } else {
           result[key] = reviveDates(value)
@@ -238,6 +238,20 @@ export function SettingsPage() {
       return result
     }
     return obj
+  }
+
+  /** 按 ID 合并表：只新增，已存在则跳过（用于练习记录等只增不改的表） */
+  async function mergeAddOnly<T extends { id: string }>(
+    table: { get(id: string): Promise<unknown>; add(item: T): Promise<unknown> },
+    items: T[],
+  ): Promise<{ added: number; skipped: number }> {
+    let added = 0, skipped = 0
+    for (const item of items) {
+      const exists = await table.get(item.id)
+      if (!exists) { await table.add(item); added++ }
+      else { skipped++ }
+    }
+    return { added, skipped }
   }
 
   async function handleImport() {
@@ -254,47 +268,51 @@ export function SettingsPage() {
         const data = reviveDates(raw) as Record<string, unknown>
         const counts: string[] = []
 
-        // 错题
+        // 错题：按 ID 合并，比较 updatedAt 保留较新的
         if (data.mistakes && Array.isArray(data.mistakes)) {
-          await db.mistakes.clear()
-          await db.mistakes.bulkAdd(data.mistakes as MistakeRecord[])
-          counts.push(`${(data.mistakes as unknown[]).length} 条错题`)
+          const imported = data.mistakes as MistakeRecord[]
+          let added = 0, updated = 0, skipped = 0
+          for (const imp of imported) {
+            const local = await db.mistakes.get(imp.id)
+            if (!local) {
+              await db.mistakes.add(imp)
+              added++
+            } else {
+              const localTime = (local.updatedAt?.getTime() ?? local.createdAt?.getTime?.() ?? 0) as number
+              const impTime = (imp.updatedAt?.getTime() ?? imp.createdAt?.getTime?.() ?? 0) as number
+              if (impTime > localTime) {
+                await db.mistakes.put(imp)
+                updated++
+              } else {
+                skipped++
+              }
+            }
+          }
+          if (added || updated) counts.push(`错题 +${added}` + (updated ? ` 更新${updated}` : ''))
+          if (skipped > 0) counts.push(`跳过${skipped}条较旧错题`)
         }
 
-        // 复习计划
+        // 以下表只增不改（保留本地已有数据）
         if (data.reviewPlans && Array.isArray(data.reviewPlans)) {
-          await db.reviewPlans.clear()
-          await db.reviewPlans.bulkAdd(data.reviewPlans as ReviewPlan[])
+          await mergeAddOnly(db.reviewPlans as { get(id: string): Promise<unknown>; add(item: ReviewPlan): Promise<unknown> }, data.reviewPlans as ReviewPlan[])
         }
-
-        // 分析报告
         if (data.analysisReports && Array.isArray(data.analysisReports)) {
-          await db.analysisReports.clear()
-          await db.analysisReports.bulkAdd(data.analysisReports as AnalysisReport[])
+          await mergeAddOnly(db.analysisReports as { get(id: string): Promise<unknown>; add(item: AnalysisReport): Promise<unknown> }, data.analysisReports as AnalysisReport[])
         }
-
-        // 模块分析
         if (data.moduleAnalyses && Array.isArray(data.moduleAnalyses)) {
-          await db.moduleAnalyses.clear()
-          await db.moduleAnalyses.bulkAdd(data.moduleAnalyses as ModuleAnalysis[])
-          counts.push(`${(data.moduleAnalyses as unknown[]).length} 条分析`)
+          const r = await mergeAddOnly(db.moduleAnalyses as { get(id: string): Promise<unknown>; add(item: ModuleAnalysis): Promise<unknown> }, data.moduleAnalyses as ModuleAnalysis[])
+          if (r.added) counts.push(`分析 +${r.added}`)
         }
-
-        // 练习会话
         if (data.practiceSessions && Array.isArray(data.practiceSessions)) {
-          await db.practiceSessions.clear()
-          await db.practiceSessions.bulkAdd(data.practiceSessions as PracticeSession[])
+          await mergeAddOnly(db.practiceSessions as { get(id: string): Promise<unknown>; add(item: PracticeSession): Promise<unknown> }, data.practiceSessions as PracticeSession[])
         }
-
-        // 练习记录（做题记录）
         if (data.practiceRecords && Array.isArray(data.practiceRecords)) {
-          await db.practiceRecords.clear()
-          await db.practiceRecords.bulkAdd(data.practiceRecords as PracticeRecord[])
-          counts.push(`${(data.practiceRecords as unknown[]).length} 条练习记录`)
+          const r = await mergeAddOnly(db.practiceRecords as { get(id: string): Promise<unknown>; add(item: PracticeRecord): Promise<unknown> }, data.practiceRecords as PracticeRecord[])
+          if (r.added) counts.push(`练习记录 +${r.added}`)
         }
 
-        setMessage(`✅ 导入成功！${counts.join('，')}，即将刷新`)
-        setTimeout(() => window.location.reload(), 1000)
+        setMessage(counts.length ? `✅ ${counts.join('，')}` : '✅ 数据已是最新，无需合并')
+        if (counts.length) setTimeout(() => window.location.reload(), 1000)
       } catch {
         setMessage('❌ 文件格式错误')
       }

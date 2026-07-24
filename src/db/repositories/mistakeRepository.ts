@@ -6,12 +6,14 @@ import { generateId } from '../../lib/idGenerator'
 
 export const mistakeRepository = {
   async create(input: CreateMistakeInput): Promise<MistakeRecord> {
+    const now = new Date()
     const record: MistakeRecord = {
       ...input,
       id: generateId(),
       reviewCount: 0,
       mastered: false,
-      createdAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     }
     await db.mistakes.add(record)
     return record
@@ -22,7 +24,7 @@ export const mistakeRepository = {
   },
 
   async update(id: string, input: UpdateMistakeInput): Promise<void> {
-    await db.mistakes.update(id, { ...input })
+    await db.mistakes.update(id, { ...input, updatedAt: new Date() })
   },
 
   async delete(id: string): Promise<void> {
@@ -74,12 +76,12 @@ export const mistakeRepository = {
 
   /** 添加实时诊断 */
   async setQuickDiagnosis(id: string, diagnosis: QuickDiagnosis): Promise<void> {
-    await db.mistakes.update(id, { quickDiagnosis: diagnosis })
+    await db.mistakes.update(id, { quickDiagnosis: diagnosis, updatedAt: new Date() })
   },
 
   /** 添加批量分析结果 */
   async setBatchAnalysis(id: string, analysis: BatchAnalysis): Promise<void> {
-    await db.mistakes.update(id, { batchAnalysis: analysis })
+    await db.mistakes.update(id, { batchAnalysis: analysis, updatedAt: new Date() })
   },
 
   /** 添加改进尝试记录 */
@@ -87,7 +89,7 @@ export const mistakeRepository = {
     const record = await db.mistakes.get(id)
     if (record) {
       const existing = record.improvementAttempts ?? []
-      await db.mistakes.update(id, { improvementAttempts: [...existing, attempt] })
+      await db.mistakes.update(id, { improvementAttempts: [...existing, attempt], updatedAt: new Date() })
     }
   },
 
@@ -97,16 +99,17 @@ export const mistakeRepository = {
       await db.mistakes.update(id, {
         reviewedAt: new Date(),
         reviewCount: record.reviewCount + 1,
+        updatedAt: new Date(),
       })
     }
   },
 
   async markMastered(id: string): Promise<void> {
-    await db.mistakes.update(id, { mastered: true })
+    await db.mistakes.update(id, { mastered: true, updatedAt: new Date() })
   },
 
   async unmarkMastered(id: string): Promise<void> {
-    await db.mistakes.update(id, { mastered: false })
+    await db.mistakes.update(id, { mastered: false, updatedAt: new Date() })
   },
 
   async getCount(): Promise<number> {
@@ -149,6 +152,7 @@ export const mistakeRepository = {
       const update: any = {
         reviewedAt: new Date(),
         reviewCount: (record.reviewCount || 0) + 1,
+        updatedAt: new Date(),
       }
       if (!correct) {
         update.practiceWrongCount = (record.practiceWrongCount || 0) + 1
@@ -161,7 +165,7 @@ export const mistakeRepository = {
   async toggleStar(id: string): Promise<void> {
     const record = await db.mistakes.get(id)
     if (record) {
-      await db.mistakes.update(id, { starred: !record.starred })
+      await db.mistakes.update(id, { starred: !record.starred, updatedAt: new Date() })
     }
   },
 }

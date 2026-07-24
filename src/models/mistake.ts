@@ -59,6 +59,8 @@ export interface MistakeRecord {
   difficulty?: Difficulty
   timeSpent?: number
   createdAt: Date
+  /** 最后更新时间（用于多设备合并） */
+  updatedAt?: Date
   reviewedAt?: Date
   reviewCount: number
   mastered: boolean
@@ -78,7 +80,7 @@ export interface MistakeRecord {
 }
 
 /** 创建错题的输入类型 */
-export type CreateMistakeInput = Omit<MistakeRecord, 'id' | 'createdAt' | 'reviewCount' | 'mastered' | 'reviewedAt'>
+export type CreateMistakeInput = Omit<MistakeRecord, 'id' | 'createdAt' | 'updatedAt' | 'reviewCount' | 'mastered' | 'reviewedAt'>
 
 /** 更新错题的输入类型 */
 export type UpdateMistakeInput = Partial<Omit<MistakeRecord, 'id' | 'createdAt'>>

@@ -49,6 +49,15 @@ export class ExamMistakeDB extends Dexie {
       practiceSessions: 'id, module, createdAt',
       practiceRecords: 'id, createdAt',
     })
+
+    this.version(6).stores({
+      mistakes: 'id, module, errorType, knowledgePoint, createdAt, updatedAt, mastered, entryType, questionType',
+      reviewPlans: 'id, date, completed',
+      analysisReports: 'id, createdAt',
+      moduleAnalyses: 'id, module, createdAt',
+      practiceSessions: 'id, module, createdAt',
+      practiceRecords: 'id, createdAt',
+    })
   }
 }
 
