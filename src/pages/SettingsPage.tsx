@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, FileText } from 'lucide-react'
+import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, FileText, Share2 } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { db } from '../db/database'
 import { cn } from '../lib/cn'
@@ -176,54 +176,66 @@ export function SettingsPage() {
   const mistakes = useMistakes()
   const [message, setMessage] = useState('')
 
-  async function handleExport() {
+  async function buildExportData() {
+    const [mistakesData, plansData, reportsData, moduleAnalysesData, sessionsData, recordsData] =
+      await Promise.all([
+        db.mistakes.toArray(),
+        db.reviewPlans.toArray(),
+        db.analysisReports.toArray(),
+        db.moduleAnalyses.toArray(),
+        db.practiceSessions.toArray(),
+        db.practiceRecords.toArray(),
+      ])
+    const json = JSON.stringify({
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      mistakes: mistakesData,
+      reviewPlans: plansData,
+      analysisReports: reportsData,
+      moduleAnalyses: moduleAnalysesData,
+      practiceSessions: sessionsData,
+      practiceRecords: recordsData,
+    }, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const fileName = `错题分析备份_${new Date().toISOString().slice(0, 10)}.json`
+    const parts = [`${mistakesData.length} 条错题`]
+    if (recordsData.length) parts.push(`${recordsData.length} 条练习记录`)
+    if (moduleAnalysesData.length) parts.push(`${moduleAnalysesData.length} 条分析`)
+    return { blob, fileName, summary: parts.join('，') }
+  }
+
+  async function handleShare() {
     try {
-      const [mistakesData, plansData, reportsData, moduleAnalysesData, sessionsData, recordsData] =
-        await Promise.all([
-          db.mistakes.toArray(),
-          db.reviewPlans.toArray(),
-          db.analysisReports.toArray(),
-          db.moduleAnalyses.toArray(),
-          db.practiceSessions.toArray(),
-          db.practiceRecords.toArray(),
-        ])
-      const json = JSON.stringify({
-        version: 2,
-        exportedAt: new Date().toISOString(),
-        mistakes: mistakesData,
-        reviewPlans: plansData,
-        analysisReports: reportsData,
-        moduleAnalyses: moduleAnalysesData,
-        practiceSessions: sessionsData,
-        practiceRecords: recordsData,
-      }, null, 2)
-      const blob = new Blob([json], { type: 'application/json' })
-      const fileName = `错题分析备份_${new Date().toISOString().slice(0, 10)}.json`
-
-      const parts = [`${mistakesData.length} 条错题`]
-      if (recordsData.length) parts.push(`${recordsData.length} 条练习记录`)
-      if (moduleAnalysesData.length) parts.push(`${moduleAnalysesData.length} 条分析`)
-
-      // 优先用系统分享（移动端），不支持则下载（桌面端）
-      if (navigator.share && navigator.canShare?.({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
-        await navigator.share({
-          files: [new File([blob], fileName, { type: 'application/json' })],
-          title: '错题数据备份',
-        })
-        setMessage(`✅ 导出成功（${parts.join('，')}），已唤起分享`)
-      } else {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        a.click()
-        URL.revokeObjectURL(url)
-        setMessage(`✅ 数据导出成功（${parts.join('，')}）`)
+      const { blob, fileName, summary } = await buildExportData()
+      if (!navigator.share || !navigator.canShare?.({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+        setMessage('❌ 当前浏览器不支持分享，请使用「下载到本地」')
+        setTimeout(() => setMessage(''), 3000)
+        return
       }
+      await navigator.share({
+        files: [new File([blob], fileName, { type: 'application/json' })],
+        title: '错题数据备份',
+      })
+      setMessage(`✅ 已分享（${summary}）`)
     } catch (err: any) {
-      // 用户取消分享不算错误
       if (err?.name === 'AbortError') return
-      setMessage('❌ 导出失败')
+      setMessage('❌ 分享失败')
+    }
+    setTimeout(() => setMessage(''), 3000)
+  }
+
+  async function handleDownload() {
+    try {
+      const { blob, fileName, summary } = await buildExportData()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+      setMessage(`✅ 已下载到本地（${summary}）`)
+    } catch {
+      setMessage('❌ 下载失败')
     }
     setTimeout(() => setMessage(''), 3000)
   }
@@ -410,11 +422,18 @@ export function SettingsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <h2 className="text-sm font-semibold text-slate-800 px-4 pt-4 pb-2">数据管理</h2>
         <button
-          onClick={handleExport}
+          onClick={handleShare}
           className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 border-b border-slate-50"
         >
-          <Download size={18} className="text-blue-500" />
-          导出数据（JSON）
+          <Share2 size={18} className="text-blue-500" />
+          分享
+        </button>
+        <button
+          onClick={handleDownload}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 border-b border-slate-50"
+        >
+          <Download size={18} className="text-slate-400" />
+          下载到本地
         </button>
         <button
           onClick={handleImport}
