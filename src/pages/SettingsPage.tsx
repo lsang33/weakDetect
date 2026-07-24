@@ -208,18 +208,21 @@ export function SettingsPage() {
     try {
       const { blob, fileName, summary } = await buildExportData()
       if (!navigator.share) {
-        setMessage('❌ 当前浏览器不支持分享，请使用「下载到本地」')
-        setTimeout(() => setMessage(''), 3000)
+        handleDownload()
         return
       }
-      await navigator.share({
-        files: [new File([blob], fileName, { type: 'application/json' })],
-        title: '错题数据备份',
-      })
+      const file = new File([blob], fileName, { type: 'application/json' })
+      // 超时保护：share API 不应挂起超过 5 秒
+      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      await Promise.race([
+        navigator.share({ files: [file], text: `错题数据备份（${summary}）`, title: '错题数据备份' }),
+        timeout,
+      ])
       setMessage(`✅ 已分享（${summary}）`)
     } catch (err: any) {
       if (err?.name === 'AbortError') return
-      setMessage('❌ 分享失败，请使用「下载到本地」')
+      // 分享失败，自动回退到下载
+      handleDownload()
     }
     setTimeout(() => setMessage(''), 3000)
   }
