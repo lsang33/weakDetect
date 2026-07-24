@@ -128,7 +128,7 @@ export function MistakeListPage() {
     }
 
     return result
-  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis, datePreset, dateStart, dateEnd])
+  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis, filterStarred, datePreset, dateStart, dateEnd])
 
   const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis, filterStarred, datePreset !== 'all'].filter(Boolean).length
 
