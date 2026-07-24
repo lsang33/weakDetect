@@ -198,17 +198,31 @@ export function SettingsPage() {
         practiceRecords: recordsData,
       }, null, 2)
       const blob = new Blob([json], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `错题分析备份_${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      URL.revokeObjectURL(url)
+      const fileName = `错题分析备份_${new Date().toISOString().slice(0, 10)}.json`
+
       const parts = [`${mistakesData.length} 条错题`]
       if (recordsData.length) parts.push(`${recordsData.length} 条练习记录`)
       if (moduleAnalysesData.length) parts.push(`${moduleAnalysesData.length} 条分析`)
-      setMessage(`✅ 数据导出成功（${parts.join('，')}）`)
-    } catch {
+
+      // 优先用系统分享（移动端），不支持则下载（桌面端）
+      if (navigator.share && navigator.canShare?.({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+        await navigator.share({
+          files: [new File([blob], fileName, { type: 'application/json' })],
+          title: '错题数据备份',
+        })
+        setMessage(`✅ 导出成功（${parts.join('，')}），已唤起分享`)
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        a.click()
+        URL.revokeObjectURL(url)
+        setMessage(`✅ 数据导出成功（${parts.join('，')}）`)
+      }
+    } catch (err: any) {
+      // 用户取消分享不算错误
+      if (err?.name === 'AbortError') return
       setMessage('❌ 导出失败')
     }
     setTimeout(() => setMessage(''), 3000)
