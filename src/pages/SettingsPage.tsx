@@ -211,10 +211,14 @@ export function SettingsPage() {
       const { blob, fileName, summary } = await buildExportData()
       if (!navigator.share) {
         setMessage('❌ 当前浏览器不支持分享，请使用「下载到本地」')
-        setTimeout(() => setMessage(''), 3000)
         return
       }
       const file = new File([blob], fileName, { type: 'application/json' })
+      const canShare = navigator.canShare?.({ files: [file] })
+      if (canShare === false) {
+        setMessage('❌ 当前浏览器不支持分享文件，请使用「下载到本地」')
+        return
+      }
       await navigator.share({
         files: [file],
         text: `错题数据备份（${summary}）`,
@@ -222,7 +226,8 @@ export function SettingsPage() {
       })
       setMessage(`✅ 已分享（${summary}）`)
     } catch (err: any) {
-      setMessage('❌ 分享失败，请使用「下载到本地」')
+      const detail = err?.message ? `${err.name || 'Error'}: ${err.message}` : String(err)
+      setMessage(`❌ 分享失败（${detail}），请使用「下载到本地」`)
     } finally {
       setSharing(false)
       setTimeout(() => setMessage(''), 3000)
