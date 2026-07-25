@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, FileText, Share2 } from 'lucide-react'
+import { Download, Upload, Trash2, Info, Key, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, FileText, Share2, RefreshCw } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { db } from '../db/database'
 import { cn } from '../lib/cn'
@@ -176,6 +176,45 @@ export function SettingsPage() {
   const mistakes = useMistakes()
   const [message, setMessage] = useState('')
   const [sharing, setSharing] = useState(false)
+  const [checking, setChecking] = useState(false)
+
+  async function handleCheckUpdate() {
+    setChecking(true)
+    setMessage('')
+    try {
+      if (!navigator.serviceWorker) {
+        setMessage('⚠️ 当前浏览器不支持 Service Worker')
+        return
+      }
+      const reg = await navigator.serviceWorker.getRegistration()
+      if (!reg) {
+        setMessage('⚠️ 当前未安装 PWA，无需更新')
+        return
+      }
+      // 监听新 SW 出现
+      const found = new Promise<boolean>(resolve => {
+        if (reg.waiting) { resolve(true); return }
+        if (reg.installing) { resolve(true); return }
+        reg.addEventListener('updatefound', () => resolve(true), { once: true })
+        // 3 秒超时
+        setTimeout(() => resolve(false), 3000)
+      })
+      await reg.update()
+      const hasUpdate = await found
+      if (hasUpdate) {
+        reg.waiting?.postMessage({ type: 'SKIP_WAITING' })
+        setMessage('✅ 发现新版本，即将刷新...')
+        setTimeout(() => window.location.reload(), 500)
+      } else {
+        setMessage('✅ 已是最新版本')
+      }
+    } catch {
+      setMessage('❌ 检查更新失败')
+    } finally {
+      setChecking(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
 
   // 预缓存导出数据 — 确保分享时 navigator.share() 能立即调用，不因异步查询丢失用户手势
   const exportCache = useRef<{ blob: Blob; fileName: string; summary: string } | null>(null)
@@ -454,6 +493,14 @@ export function SettingsPage() {
         >
           <Upload size={18} className="text-green-500" />
           导入数据（JSON）
+        </button>
+        <button
+          onClick={handleCheckUpdate}
+          disabled={checking}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 border-b border-slate-50 disabled:opacity-60"
+        >
+          {checking ? <Loader2 size={18} className="text-purple-500 animate-spin" /> : <RefreshCw size={18} className="text-purple-500" />}
+          检查更新
         </button>
         <button
           onClick={handleExportPrint}
