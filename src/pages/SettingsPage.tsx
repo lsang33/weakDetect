@@ -200,16 +200,14 @@ export function SettingsPage() {
         setMessage('⚠️ 当前未安装 PWA，无需更新')
         return
       }
-      // 监听新 SW 出现
-      const found = new Promise<boolean>(resolve => {
-        if (reg.waiting) { resolve(true); return }
-        if (reg.installing) { resolve(true); return }
-        reg.addEventListener('updatefound', () => resolve(true), { once: true })
-        // 3 秒超时
-        setTimeout(() => resolve(false), 3000)
-      })
       await reg.update()
-      const hasUpdate = await found
+      // 等一小段时间让 SW 下载完成
+      const hasUpdate = await new Promise<boolean>(resolve => {
+        if (reg.waiting) return resolve(true)
+        if (reg.installing) return resolve(true)
+        reg.addEventListener('updatefound', () => resolve(true), { once: true })
+        setTimeout(() => resolve(false), 1500)
+      })
       if (hasUpdate) {
         reg.waiting?.postMessage({ type: 'SKIP_WAITING' })
         setMessage('✅ 发现新版本，即将刷新...')
