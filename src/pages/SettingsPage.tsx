@@ -212,16 +212,12 @@ export function SettingsPage() {
     buildExportData().then(data => { exportCache.current = data })
   }, [])
 
-  async function getExportData() {
-    if (!exportCache.current) exportCache.current = await buildExportData()
-    return exportCache.current
-  }
-
   async function handleShare() {
     setSharing(true)
     setMessage('')
     try {
-      const { blob, fileName, summary } = await getExportData()
+      const data = exportCache.current!
+      const { blob, fileName, summary } = data
 
       if (!navigator.share) {
         setMessage('❌ 浏览器不支持分享')
@@ -242,14 +238,14 @@ export function SettingsPage() {
 
   async function handleDownload() {
     try {
-      const { blob, fileName, summary } = await getExportData()
-      const url = URL.createObjectURL(blob)
+      const data = exportCache.current ?? await buildExportData()
+      const url = URL.createObjectURL(data.blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = fileName
+      a.download = data.fileName
       a.click()
       URL.revokeObjectURL(url)
-      setMessage(`✅ 已下载到本地（${summary}）`)
+      setMessage(`✅ 已下载到本地（${data.summary}）`)
     } catch {
       setMessage('❌ 下载失败')
     }
