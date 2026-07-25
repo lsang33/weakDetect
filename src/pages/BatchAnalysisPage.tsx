@@ -3,6 +3,7 @@ import { BarChart3, RefreshCw, ChevronDown, ChevronUp, Brain, Clock } from 'luci
 import { useMistakes } from '../hooks/useMistakes'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { analyzeModule } from '../services/moduleAnalysisService'
+import { getDsModelName } from '../services/deepseekService'
 import { moduleAnalysisRepository } from '../db'
 import { ExamModule, MODULE_LABELS, MODULE_COLORS } from '../lib/constants'
 import { formatDate } from '../lib/dateUtils'
@@ -58,7 +59,7 @@ function ModuleCard({ module, label, color, count, analyzed, mistakes }: {
     setAnalyzing(true)
     setError('')
     try {
-      const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
+      const dsModelName = getDsModelName()
       const mistakes = useMistakesCache()
       const moduleMistakes = mistakes.filter(m => m.module === module && m.questionStem)
       const res = await analyzeModule(moduleMistakes, label, apiKey, dsModelName)

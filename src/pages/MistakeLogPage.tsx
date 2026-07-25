@@ -16,7 +16,7 @@ import type { CreateMistakeInput } from '../models/mistake'
 import type { Difficulty } from '../models/exam'
 import type { OcrResult } from '../services/ocrService'
 import { diagnoseMistake as qwenDiagnose, type DiagnosisResult } from '../services/diagnoseService'
-import { deepseekDiagnose } from '../services/deepseekService'
+import { deepseekDiagnose, getDsModelName } from '../services/deepseekService'
 import type { QuickDiagnosis } from '../models/mistake'
 import { MODULE_LABELS as ML } from '../lib/constants'
 
@@ -594,7 +594,7 @@ export function MistakeLogPage() {
             }
             setDiagError('')
             setDiagnosing(true)
-            const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
+            const dsModelName = getDsModelName()
             const dsModelLabel = dsModelName.includes('flash') ? 'deepseek-v4-flash' : 'deepseek-v4-pro(Pro)'
             const modelLabel = diagModel === 'deepseek' ? dsModelLabel : 'qwen-max(思考)'
             const styleLabel = { compact: '精炼', detailed: '详细', free: '自由' }[diagStyle] || diagStyle

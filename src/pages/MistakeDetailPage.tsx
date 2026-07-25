@@ -13,7 +13,7 @@ import type { ImprovementAttempt, UpdateMistakeInput, QuickDiagnosis } from '../
 import { CameraCapture } from '../components/CameraCapture'
 import type { OcrResult } from '../services/ocrService'
 import { diagnoseMistake as qwenDiagnose, diagnoseMistakeStep1b as qwenDiagnoseStep1b } from '../services/diagnoseService'
-import { deepseekDiagnose, deepseekDiagnoseStep1b } from '../services/deepseekService'
+import { deepseekDiagnose, deepseekDiagnoseStep1b, getDsModelName } from '../services/deepseekService'
 import { cn } from '../lib/cn'
 import { mistakeRepository } from '../db'
 
@@ -96,7 +96,7 @@ export function MistakeDetailPage() {
     setDiagError('')
     try {
       const modName = MODULE_LABELS[mistake.module]
-      const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
+      const dsModelName = getDsModelName()
       const result = diagModel === 'deepseek'
         ? await deepseekDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
         : await qwenDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)
@@ -121,7 +121,7 @@ export function MistakeDetailPage() {
     setDiagError('')
     try {
       const modName = MODULE_LABELS[mistake.module]
-      const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
+      const dsModelName = getDsModelName()
       const result = diagModel === 'deepseek'
         ? await deepseekDiagnoseStep1b(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
         : await qwenDiagnoseStep1b(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)

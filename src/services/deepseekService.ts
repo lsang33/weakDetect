@@ -5,6 +5,14 @@ import { diagnose, diagnoseStep1b, BASE_SYSTEM, type DiagnosisResult } from './d
 
 const DS_URL = 'https://api.deepseek.com/v1/chat/completions'
 
+/** 兼容旧版模型名: reasoner→deepseek-v4-pro, chat→deepseek-v4-flash */
+export function getDsModelName(): string {
+  const raw = localStorage.getItem('ds_model')
+  if (raw === 'reasoner') return 'deepseek-v4-pro'
+  if (raw === 'chat') return 'deepseek-v4-flash'
+  return raw || 'deepseek-v4-pro'
+}
+
 const SYSTEM_STYLES: Record<string, string> = {
   compact: BASE_SYSTEM + '\n\n' + compactPrompt,
   detailed: BASE_SYSTEM + '\n\n' + detailedPrompt,

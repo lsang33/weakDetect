@@ -5,7 +5,7 @@ import { db } from '../db/database'
 import { cn } from '../lib/cn'
 import { MODULE_LABELS } from '../lib/constants'
 import { validateQwenKey } from '../services/diagnoseService'
-import { validateDeepseekKey } from '../services/deepseekService'
+import { validateDeepseekKey, getDsModelName } from '../services/deepseekService'
 import type { MistakeRecord } from '../models/mistake'
 import type { ReviewPlan } from '../models/review'
 import type { AnalysisReport, ModuleAnalysis, PracticeSession, PracticeRecord } from '../models/analytics'
@@ -15,7 +15,7 @@ function ApiSettings() {
   const [deepseekKey, setDeepseekKey] = useState('')
   const [diagModel, setDiagModel] = useState('')
   const [diagStyle, setDiagStyle] = useState('')
-  const [dsModel, setDsModel] = useState('deepseek-v4-pro')
+  const [dsModel, setDsModel] = useState(() => getDsModelName())
   const [showDash, setShowDash] = useState(false)
   const [showDS, setShowDS] = useState(false)
   const [msg, setMsg] = useState('')
@@ -28,9 +28,7 @@ function ApiSettings() {
     setDeepseekKey(localStorage.getItem('deepseek_key') || '')
     setDiagModel(localStorage.getItem('diag_model') || 'qwen')
     setDiagStyle(localStorage.getItem('diag_style') || 'compact')
-    // 兼容旧值: reasoner→deepseek-v4-pro, chat→deepseek-v4-flash
-    const oldModel = localStorage.getItem('ds_model')
-    setDsModel(oldModel === 'chat' ? 'deepseek-v4-flash' : oldModel === 'reasoner' ? 'deepseek-v4-pro' : (oldModel || 'deepseek-v4-pro'))
+    setDsModel(getDsModelName())
   }, [])
 
   async function saveKeys() {
