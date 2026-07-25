@@ -673,9 +673,9 @@ export function SettingsPage() {
       {/* API 设置 */}
       <ApiSettings />
 
-      {/* 提示消息 */}
+      {/* 提示消息 — 固定顶部，不被导航栏遮挡 */}
       {message && (
-        <div className="text-center text-sm font-medium py-3 bg-white rounded-xl border border-slate-100 animate-fade-in">
+        <div className="fixed top-4 left-4 right-4 z-50 text-center text-sm font-medium py-3 px-4 bg-white rounded-xl border border-slate-200 shadow-lg animate-fade-in">
           {message}
         </div>
       )}
