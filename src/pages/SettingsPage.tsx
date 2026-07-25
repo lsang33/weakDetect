@@ -265,6 +265,22 @@ export function SettingsPage() {
         return
       }
 
+      // 诊断：查询 web-share 权限状态
+      if (navigator.permissions) {
+        try {
+          const perm = await navigator.permissions.query({ name: 'web-share' as PermissionName })
+          alert(`web-share 权限状态: ${perm.state}`)
+          if (perm.state === 'denied') {
+            setMessage('❌ 系统已禁用分享权限，请使用「下载到本地」')
+            return
+          }
+        } catch(e: any) {
+          alert(`permissions.query 异常: ${e?.name}: ${e?.message}`)
+        }
+      } else {
+        alert('navigator.permissions 不存在')
+      }
+
       const file = new File([blob], fileName, { type: 'application/json' })
       await navigator.share({ files: [file], title: '错题数据备份' })
       setMessage(`✅ 已分享（${summary}）`)
