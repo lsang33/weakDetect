@@ -58,8 +58,7 @@ function ModuleCard({ module, label, color, count, analyzed, mistakes }: {
     setAnalyzing(true)
     setError('')
     try {
-      const dsModel = localStorage.getItem('ds_model') || 'reasoner'
-      const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
+      const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
       const mistakes = useMistakesCache()
       const moduleMistakes = mistakes.filter(m => m.module === module && m.questionStem)
       const res = await analyzeModule(moduleMistakes, label, apiKey, dsModelName)

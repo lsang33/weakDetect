@@ -15,7 +15,7 @@ function ApiSettings() {
   const [deepseekKey, setDeepseekKey] = useState('')
   const [diagModel, setDiagModel] = useState('')
   const [diagStyle, setDiagStyle] = useState('')
-  const [dsModel, setDsModel] = useState('reasoner')
+  const [dsModel, setDsModel] = useState('deepseek-v4-pro')
   const [showDash, setShowDash] = useState(false)
   const [showDS, setShowDS] = useState(false)
   const [msg, setMsg] = useState('')
@@ -28,7 +28,9 @@ function ApiSettings() {
     setDeepseekKey(localStorage.getItem('deepseek_key') || '')
     setDiagModel(localStorage.getItem('diag_model') || 'qwen')
     setDiagStyle(localStorage.getItem('diag_style') || 'compact')
-    setDsModel(localStorage.getItem('ds_model') || 'reasoner')
+    // 兼容旧值: reasoner→deepseek-v4-pro, chat→deepseek-v4-flash
+    const oldModel = localStorage.getItem('ds_model')
+    setDsModel(oldModel === 'chat' ? 'deepseek-v4-flash' : oldModel === 'reasoner' ? 'deepseek-v4-pro' : (oldModel || 'deepseek-v4-pro'))
   }, [])
 
   async function saveKeys() {
@@ -137,12 +139,12 @@ function ApiSettings() {
           </div>
           {diagModel === 'deepseek' && (
             <div className="flex gap-2 mt-2">
-              <button onClick={() => setDsModel('chat')}
-                className={'flex-1 py-1 rounded text-[11px] font-medium border ' + (dsModel === 'chat' ? 'bg-blue-50 text-blue-600 border-blue-300' : 'bg-white text-slate-400 border-slate-200')}>
+              <button onClick={() => setDsModel('deepseek-v4-flash')}
+                className={'flex-1 py-1 rounded text-[11px] font-medium border ' + (dsModel === 'deepseek-v4-flash' ? 'bg-blue-50 text-blue-600 border-blue-300' : 'bg-white text-slate-400 border-slate-200')}>
                 ⚡ Flash
               </button>
-              <button onClick={() => setDsModel('reasoner')}
-                className={'flex-1 py-1 rounded text-[11px] font-medium border ' + (dsModel === 'reasoner' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-400 border-slate-200')}>
+              <button onClick={() => setDsModel('deepseek-v4-pro')}
+                className={'flex-1 py-1 rounded text-[11px] font-medium border ' + (dsModel === 'deepseek-v4-pro' ? 'bg-purple-50 text-purple-600 border-purple-300' : 'bg-white text-slate-400 border-slate-200')}>
                 🧠 Pro（思考）
               </button>
             </div>

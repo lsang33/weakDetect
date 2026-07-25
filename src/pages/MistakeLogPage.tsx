@@ -594,9 +594,8 @@ export function MistakeLogPage() {
             }
             setDiagError('')
             setDiagnosing(true)
-            const dsModel = localStorage.getItem('ds_model') || 'reasoner'
-            const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
-            const dsModelLabel = dsModel === 'chat' ? 'deepseek-chat(Flash)' : 'deepseek-reasoner(Pro)'
+            const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
+            const dsModelLabel = dsModelName.includes('flash') ? 'deepseek-v4-flash' : 'deepseek-v4-pro(Pro)'
             const modelLabel = diagModel === 'deepseek' ? dsModelLabel : 'qwen-max(思考)'
             const styleLabel = { compact: '精炼', detailed: '详细', free: '自由' }[diagStyle] || diagStyle
             addLog(`开始诊断 #${diagnoses.length + 1} [${modelLabel}/${styleLabel}] ${modName}`, 'info')

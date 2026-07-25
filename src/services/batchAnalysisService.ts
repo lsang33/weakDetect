@@ -4,7 +4,7 @@ import type { DiagnosisResult } from './diagnoseService'
 
 const DS_URL = 'https://api.deepseek.com/v1/chat/completions'
 
-async function callDS(prompt: string, apiKey: string, model = 'deepseek-reasoner', maxTokens = 4000): Promise<string> {
+async function callDS(prompt: string, apiKey: string, model = 'deepseek-v4-pro', maxTokens = 4000): Promise<string> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 180000) // 3 分钟超时
   const resp = await fetch(DS_URL, {
@@ -55,7 +55,7 @@ export async function analyzeBatch(
   mistakes: MistakeRecord[],
   previousReport: { summary: string; weaknessPatterns: WeaknessPattern[] } | null,
   apiKey: string,
-  model = 'deepseek-reasoner',
+  model = 'deepseek-v4-pro',
 ): Promise<BatchResult> {
   const questionList = mistakes.map((m, i) => {
     const diag = m.quickDiagnosis

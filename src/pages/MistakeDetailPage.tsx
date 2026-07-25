@@ -96,8 +96,7 @@ export function MistakeDetailPage() {
     setDiagError('')
     try {
       const modName = MODULE_LABELS[mistake.module]
-      const dsModel = localStorage.getItem('ds_model') || 'reasoner'
-      const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
+      const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
       const result = diagModel === 'deepseek'
         ? await deepseekDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
         : await qwenDiagnose(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)
@@ -122,8 +121,7 @@ export function MistakeDetailPage() {
     setDiagError('')
     try {
       const modName = MODULE_LABELS[mistake.module]
-      const dsModel = localStorage.getItem('ds_model') || 'reasoner'
-      const dsModelName = dsModel === 'chat' ? 'deepseek-chat' : 'deepseek-reasoner'
+      const dsModelName = localStorage.getItem('ds_model') || 'deepseek-v4-pro'
       const result = diagModel === 'deepseek'
         ? await deepseekDiagnoseStep1b(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle, dsModelName)
         : await qwenDiagnoseStep1b(mistake.questionStem, mistake.correctAnswer, mistake.myAnswer, modName, apiKey, diagStyle)

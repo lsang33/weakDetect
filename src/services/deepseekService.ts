@@ -11,7 +11,7 @@ const SYSTEM_STYLES: Record<string, string> = {
   free: BASE_SYSTEM + '\n\n' + freePrompt,
 }
 
-async function callDS(messages: { role: string; content: string }[], apiKey: string, maxTokens = 3000, model = 'deepseek-reasoner'): Promise<string> {
+async function callDS(messages: { role: string; content: string }[], apiKey: string, maxTokens = 3000, model = 'deepseek-v4-pro'): Promise<string> {
   const resp = await fetch(DS_URL, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -33,7 +33,7 @@ export async function validateDeepseekKey(apiKey: string): Promise<boolean> {
 
 export async function deepseekDiagnose(
   questionStem: string, correctAnswer: string, myAnswer: string | undefined,
-  moduleName: string, apiKey: string, style = 'compact', dsModel = 'deepseek-reasoner',
+  moduleName: string, apiKey: string, style = 'compact', dsModel = 'deepseek-v4-pro',
 ): Promise<DiagnosisResult> {
   return diagnose(
     questionStem, correctAnswer, myAnswer, moduleName, style,
@@ -44,7 +44,7 @@ export async function deepseekDiagnose(
 
 export async function deepseekDiagnoseStep1b(
   questionStem: string, correctAnswer: string, myAnswer: string | undefined,
-  moduleName: string, apiKey: string, style = 'compact', dsModel = 'deepseek-reasoner',
+  moduleName: string, apiKey: string, style = 'compact', dsModel = 'deepseek-v4-pro',
 ): Promise<DiagnosisResult> {
   return diagnoseStep1b(
     questionStem, correctAnswer, myAnswer, moduleName, style,
