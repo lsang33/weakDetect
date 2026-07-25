@@ -589,8 +589,8 @@ export function SettingsPage() {
 
       {/* 导入预览弹窗 */}
       {importPreview && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={() => { setImportPreview(null); importDataRef.current = null }}>
-          <div className="bg-white rounded-t-2xl p-5 max-w-lg w-full shadow-xl animate-fade-in max-h-[85vh] overflow-auto" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in p-4" onClick={() => { setImportPreview(null); importDataRef.current = null }}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl animate-fade-in max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
             <p className="text-sm font-semibold text-slate-800 mb-1">导入预览</p>
             <p className="text-xs text-slate-400 mb-4">
               备份时间：{importPreview.exportedAt ? new Date(importPreview.exportedAt).toLocaleString('zh-CN') : '未知'}
@@ -600,10 +600,9 @@ export function SettingsPage() {
             <div className="mb-3">
               <p className="text-xs font-medium text-slate-600 mb-1">📝 错题（共 {importPreview.mistakes.total} 条）</p>
               <div className="flex gap-2 text-xs">
-                {importPreview.mistakes.added > 0 && <span className="text-green-600">新增 {importPreview.mistakes.added}</span>}
-                {importPreview.mistakes.updated > 0 && <span className="text-blue-600">更新 {importPreview.mistakes.updated}</span>}
-                {importPreview.mistakes.skipped > 0 && <span className="text-slate-400">跳过 {importPreview.mistakes.skipped}</span>}
-                {importPreview.mistakes.added === 0 && importPreview.mistakes.updated === 0 && <span className="text-slate-400">无变化</span>}
+                <span className={importPreview.mistakes.added > 0 ? 'text-green-600' : 'text-slate-400'}>新增 {importPreview.mistakes.added}</span>
+                <span className={importPreview.mistakes.updated > 0 ? 'text-blue-600' : 'text-slate-400'}>更新 {importPreview.mistakes.updated}</span>
+                <span className={importPreview.mistakes.skipped > 0 ? 'text-slate-500' : 'text-slate-400'}>跳过 {importPreview.mistakes.skipped}</span>
               </div>
             </div>
 
