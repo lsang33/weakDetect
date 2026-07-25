@@ -17,7 +17,7 @@ async function callDS(messages: { role: string; content: string }[], apiKey: str
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.3 }),
   })
-  if (!resp.ok) { const err = await resp.text(); throw new Error(`DeepSeek API失败: ${resp.status}`) }
+  if (!resp.ok) { const err = await resp.text(); throw new Error(`DeepSeek API失败(${resp.status}): ${err}`) }
   const data = await resp.json()
   return (data?.choices?.[0]?.message?.content || '').trim()
 }

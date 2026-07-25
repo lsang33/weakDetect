@@ -19,7 +19,7 @@ async function callQwen(messages: { role: string; content: string }[], apiKey: s
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'qwen-max', input: { messages }, parameters: { max_tokens: maxTokens, temperature: 0.3, enable_thinking: true } }),
   })
-  if (!resp.ok) throw new Error(`API失败: ${resp.status}`)
+  if (!resp.ok) { const err = await resp.text(); throw new Error(`Qwen API失败(${resp.status}): ${err}`) }
   const data = await resp.json()
   return data?.output?.text || ''
 }
