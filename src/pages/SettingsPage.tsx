@@ -590,7 +590,7 @@ export function SettingsPage() {
       {/* 导入预览弹窗 */}
       {importPreview && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={() => { setImportPreview(null); importDataRef.current = null }}>
-          <div className="bg-white rounded-t-2xl p-5 pb-8 max-w-lg w-full shadow-xl animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl p-5 max-w-lg w-full shadow-xl animate-fade-in max-h-[85vh] overflow-auto" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
             <p className="text-sm font-semibold text-slate-800 mb-1">导入预览</p>
             <p className="text-xs text-slate-400 mb-4">
               备份时间：{importPreview.exportedAt ? new Date(importPreview.exportedAt).toLocaleString('zh-CN') : '未知'}
