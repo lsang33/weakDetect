@@ -177,6 +177,15 @@ export function SettingsPage() {
   const [message, setMessage] = useState('')
   const [sharing, setSharing] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [importPreview, setImportPreview] = useState<null | {
+    exportedAt: string
+    mistakes: { total: number; added: number; updated: number; skipped: number }
+    practiceRecords: { total: number; added: number }
+    moduleAnalyses: { total: number; added: number }
+    localMistakeCount: number
+    localRecordCount: number
+  }>(null)
+  const importDataRef = useRef<Record<string, unknown> | null>(null)
 
   async function handleCheckUpdate() {
     setChecking(true)
@@ -347,6 +356,91 @@ export function SettingsPage() {
     return { added, skipped }
   }
 
+  /** 计算导入差异（不写入数据库） */
+  async function computeImportDiff(data: Record<string, unknown>) {
+    const mistakesResult = { total: 0, added: 0, updated: 0, skipped: 0 }
+    const recordsResult = { total: 0, added: 0 }
+    const analysesResult = { total: 0, added: 0 }
+
+    if (data.mistakes && Array.isArray(data.mistakes)) {
+      const imported = data.mistakes as MistakeRecord[]
+      mistakesResult.total = imported.length
+      for (const imp of imported) {
+        const local = await db.mistakes.get(imp.id)
+        if (!local) {
+          mistakesResult.added++
+        } else {
+          const localTime = (local.updatedAt?.getTime() ?? local.createdAt?.getTime?.() ?? 0) as number
+          const impTime = (imp.updatedAt?.getTime() ?? imp.createdAt?.getTime?.() ?? 0) as number
+          if (impTime > localTime) { mistakesResult.updated++ }
+          else { mistakesResult.skipped++ }
+        }
+      }
+    }
+
+    if (data.practiceRecords && Array.isArray(data.practiceRecords)) {
+      const items = data.practiceRecords as PracticeRecord[]
+      recordsResult.total = items.length
+      for (const item of items) {
+        const exists = await db.practiceRecords.get(item.id)
+        if (!exists) recordsResult.added++
+      }
+    }
+
+    if (data.moduleAnalyses && Array.isArray(data.moduleAnalyses)) {
+      const items = data.moduleAnalyses as ModuleAnalysis[]
+      analysesResult.total = items.length
+      for (const item of items) {
+        const exists = await db.moduleAnalyses.get(item.id)
+        if (!exists) analysesResult.added++
+      }
+    }
+
+    const localMistakeCount = await db.mistakes.count()
+    const localRecordCount = await db.practiceRecords.count()
+
+    return { mistakes: mistakesResult, practiceRecords: recordsResult, moduleAnalyses: analysesResult, localMistakeCount, localRecordCount }
+  }
+
+  /** 执行实际导入 */
+  async function doImport(data: Record<string, unknown>) {
+    const counts: string[] = []
+    if (data.mistakes && Array.isArray(data.mistakes)) {
+      const imported = data.mistakes as MistakeRecord[]
+      let added = 0, updated = 0, skipped = 0
+      for (const imp of imported) {
+        const local = await db.mistakes.get(imp.id)
+        if (!local) { await db.mistakes.add(imp); added++ }
+        else {
+          const localTime = (local.updatedAt?.getTime() ?? local.createdAt?.getTime?.() ?? 0) as number
+          const impTime = (imp.updatedAt?.getTime() ?? imp.createdAt?.getTime?.() ?? 0) as number
+          if (impTime > localTime) { await db.mistakes.put(imp); updated++ }
+          else { skipped++ }
+        }
+      }
+      if (added || updated) counts.push(`错题 +${added}` + (updated ? ` 更新${updated}` : ''))
+    }
+    if (data.reviewPlans && Array.isArray(data.reviewPlans)) {
+      await mergeAddOnly(db.reviewPlans as any, data.reviewPlans as ReviewPlan[])
+    }
+    if (data.analysisReports && Array.isArray(data.analysisReports)) {
+      await mergeAddOnly(db.analysisReports as any, data.analysisReports as AnalysisReport[])
+    }
+    if (data.moduleAnalyses && Array.isArray(data.moduleAnalyses)) {
+      const r = await mergeAddOnly(db.moduleAnalyses as any, data.moduleAnalyses as ModuleAnalysis[])
+      if (r.added) counts.push(`分析 +${r.added}`)
+    }
+    if (data.practiceSessions && Array.isArray(data.practiceSessions)) {
+      await mergeAddOnly(db.practiceSessions as any, data.practiceSessions as PracticeSession[])
+    }
+    if (data.practiceRecords && Array.isArray(data.practiceRecords)) {
+      const r = await mergeAddOnly(db.practiceRecords as any, data.practiceRecords as PracticeRecord[])
+      if (r.added) counts.push(`练习记录 +${r.added}`)
+    }
+    setMessage(counts.length ? `✅ ${counts.join('，')}` : '✅ 数据已是最新，无需合并')
+    if (counts.length) setTimeout(() => window.location.reload(), 1000)
+  }
+
   async function handleImport() {
     const input = document.createElement('input')
     input.type = 'file'
@@ -354,60 +448,19 @@ export function SettingsPage() {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
-
       try {
         const text = await file.text()
         const raw = JSON.parse(text)
         const data = reviveDates(raw) as Record<string, unknown>
-        const counts: string[] = []
-
-        // 错题：按 ID 合并，比较 updatedAt 保留较新的
-        if (data.mistakes && Array.isArray(data.mistakes)) {
-          const imported = data.mistakes as MistakeRecord[]
-          let added = 0, updated = 0, skipped = 0
-          for (const imp of imported) {
-            const local = await db.mistakes.get(imp.id)
-            if (!local) {
-              await db.mistakes.add(imp)
-              added++
-            } else {
-              const localTime = (local.updatedAt?.getTime() ?? local.createdAt?.getTime?.() ?? 0) as number
-              const impTime = (imp.updatedAt?.getTime() ?? imp.createdAt?.getTime?.() ?? 0) as number
-              if (impTime > localTime) {
-                await db.mistakes.put(imp)
-                updated++
-              } else {
-                skipped++
-              }
-            }
-          }
-          if (added || updated) counts.push(`错题 +${added}` + (updated ? ` 更新${updated}` : ''))
-          if (skipped > 0) counts.push(`跳过${skipped}条较旧错题`)
-        }
-
-        // 以下表只增不改（保留本地已有数据）
-        if (data.reviewPlans && Array.isArray(data.reviewPlans)) {
-          await mergeAddOnly(db.reviewPlans as { get(id: string): Promise<unknown>; add(item: ReviewPlan): Promise<unknown> }, data.reviewPlans as ReviewPlan[])
-        }
-        if (data.analysisReports && Array.isArray(data.analysisReports)) {
-          await mergeAddOnly(db.analysisReports as { get(id: string): Promise<unknown>; add(item: AnalysisReport): Promise<unknown> }, data.analysisReports as AnalysisReport[])
-        }
-        if (data.moduleAnalyses && Array.isArray(data.moduleAnalyses)) {
-          const r = await mergeAddOnly(db.moduleAnalyses as { get(id: string): Promise<unknown>; add(item: ModuleAnalysis): Promise<unknown> }, data.moduleAnalyses as ModuleAnalysis[])
-          if (r.added) counts.push(`分析 +${r.added}`)
-        }
-        if (data.practiceSessions && Array.isArray(data.practiceSessions)) {
-          await mergeAddOnly(db.practiceSessions as { get(id: string): Promise<unknown>; add(item: PracticeSession): Promise<unknown> }, data.practiceSessions as PracticeSession[])
-        }
-        if (data.practiceRecords && Array.isArray(data.practiceRecords)) {
-          const r = await mergeAddOnly(db.practiceRecords as { get(id: string): Promise<unknown>; add(item: PracticeRecord): Promise<unknown> }, data.practiceRecords as PracticeRecord[])
-          if (r.added) counts.push(`练习记录 +${r.added}`)
-        }
-
-        setMessage(counts.length ? `✅ ${counts.join('，')}` : '✅ 数据已是最新，无需合并')
-        if (counts.length) setTimeout(() => window.location.reload(), 1000)
+        importDataRef.current = data
+        const diff = await computeImportDiff(data)
+        setImportPreview({
+          exportedAt: (data as any).exportedAt || '未知',
+          ...diff,
+        })
       } catch {
         setMessage('❌ 文件格式错误')
+        setTimeout(() => setMessage(''), 3000)
       }
     }
     input.click()
@@ -533,6 +586,72 @@ export function SettingsPage() {
           清空所有数据
         </button>
       </div>
+
+      {/* 导入预览弹窗 */}
+      {importPreview && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={() => { setImportPreview(null); importDataRef.current = null }}>
+          <div className="bg-white rounded-t-2xl p-5 pb-8 max-w-lg w-full shadow-xl animate-fade-in" onClick={e => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-slate-800 mb-1">导入预览</p>
+            <p className="text-xs text-slate-400 mb-4">
+              备份时间：{importPreview.exportedAt ? new Date(importPreview.exportedAt).toLocaleString('zh-CN') : '未知'}
+            </p>
+
+            {/* 错题 */}
+            <div className="mb-3">
+              <p className="text-xs font-medium text-slate-600 mb-1">📝 错题（共 {importPreview.mistakes.total} 条）</p>
+              <div className="flex gap-2 text-xs">
+                {importPreview.mistakes.added > 0 && <span className="text-green-600">新增 {importPreview.mistakes.added}</span>}
+                {importPreview.mistakes.updated > 0 && <span className="text-blue-600">更新 {importPreview.mistakes.updated}</span>}
+                {importPreview.mistakes.skipped > 0 && <span className="text-slate-400">跳过 {importPreview.mistakes.skipped}</span>}
+                {importPreview.mistakes.added === 0 && importPreview.mistakes.updated === 0 && <span className="text-slate-400">无变化</span>}
+              </div>
+            </div>
+
+            {/* 练习记录 */}
+            {importPreview.practiceRecords.total > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium text-slate-600 mb-1">🏋️ 练习记录（共 {importPreview.practiceRecords.total} 条）</p>
+                <div className="flex gap-2 text-xs">
+                  {importPreview.practiceRecords.added > 0 ? <span className="text-green-600">新增 {importPreview.practiceRecords.added}</span> : <span className="text-slate-400">无新增</span>}
+                </div>
+              </div>
+            )}
+
+            {/* 模块分析 */}
+            {importPreview.moduleAnalyses.total > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium text-slate-600 mb-1">🧠 模块分析（共 {importPreview.moduleAnalyses.total} 条）</p>
+                <div className="flex gap-2 text-xs">
+                  {importPreview.moduleAnalyses.added > 0 ? <span className="text-green-600">新增 {importPreview.moduleAnalyses.added}</span> : <span className="text-slate-400">无新增</span>}
+                </div>
+              </div>
+            )}
+
+            {/* 导入后本地数据量 */}
+            <div className="bg-slate-50 rounded-lg p-3 mb-4 text-xs text-slate-500 space-y-0.5">
+              <p>导入后本地将有：</p>
+              <p>· 错题 {importPreview.localMistakeCount} → {importPreview.localMistakeCount + importPreview.mistakes.added} 条</p>
+              <p>· 练习记录 {importPreview.localRecordCount} → {importPreview.localRecordCount + importPreview.practiceRecords.added} 条</p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setImportPreview(null); importDataRef.current = null }}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
+              >取消</button>
+              <button
+                onClick={async () => {
+                  const data = importDataRef.current
+                  setImportPreview(null)
+                  importDataRef.current = null
+                  if (data) await doImport(data)
+                }}
+                className="flex-1 py-2 rounded-xl bg-purple-500 text-white text-sm font-medium"
+              >确认导入</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 备份说明 */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
