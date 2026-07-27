@@ -859,6 +859,10 @@ export function PracticePage() {
             )}
             {statsText && <p className="text-center text-xs text-slate-400">{statsText}</p>}
             <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmType('exit')}
+                className="py-2 px-4 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white shrink-0"
+              >退出</button>
               {showFeedback ? (
                 <>
                   {currentIdx > 0 && (
@@ -877,10 +881,6 @@ export function PracticePage() {
                   确认
                 </button>
               )}
-              <button
-                onClick={() => setConfirmType('exit')}
-                className="py-2 px-4 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white shrink-0"
-              >退出</button>
             </div>
           </>
         ) : (
