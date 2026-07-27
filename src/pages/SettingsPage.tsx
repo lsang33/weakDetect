@@ -201,12 +201,20 @@ export function SettingsPage() {
         return
       }
       await reg.update()
-      // 等一小段时间让 SW 下载完成
+      // 等 SW 下载完成，移动网络可能较慢
       const hasUpdate = await new Promise<boolean>(resolve => {
         if (reg.waiting) return resolve(true)
         if (reg.installing) return resolve(true)
-        reg.addEventListener('updatefound', () => resolve(true), { once: true })
-        setTimeout(() => resolve(false), 1500)
+        reg.addEventListener('updatefound', () => {
+          // 新 SW 开始安装，定期检查是否安装完成
+          const check = setInterval(() => {
+            if (reg.waiting) { clearInterval(check); resolve(true) }
+          }, 500)
+          // 最多再等 10 秒
+          setTimeout(() => { clearInterval(check); resolve(false) }, 10000)
+        }, { once: true })
+        // 没有 updatefound，5 秒后判断无更新
+        setTimeout(() => resolve(false), 5000)
       })
       if (hasUpdate) {
         reg.waiting?.postMessage({ type: 'SKIP_WAITING' })

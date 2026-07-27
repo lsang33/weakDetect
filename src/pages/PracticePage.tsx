@@ -115,6 +115,7 @@ export function PracticePage() {
   const [maxQuestions, setMaxQuestions] = useState(30)
   const [includeMastered, setIncludeMastered] = useState(false)
   const [starredOnly, setStarredOnly] = useState(false)
+  const [prioritizeUnpracticed, setPrioritizeUnpracticed] = useState(false)
 
   // === 练习状态 ===
   const [questions, setQuestions] = useState<MistakeRecord[]>([])
@@ -211,7 +212,14 @@ export function PracticePage() {
   // === 处理函数 ===
 
   function startPractice() {
-    const pool = shuffle(filtered).slice(0, maxQuestions)
+    let pool: MistakeRecord[]
+    if (prioritizeUnpracticed) {
+      const unpracticed = filtered.filter(m => !m.reviewCount)
+      const practiced = filtered.filter(m => m.reviewCount)
+      pool = [...shuffle(unpracticed), ...shuffle(practiced)].slice(0, maxQuestions)
+    } else {
+      pool = shuffle(filtered).slice(0, maxQuestions)
+    }
     if (pool.length === 0) return
     setQuestions(pool)
     setCurrentIdx(0)
@@ -512,6 +520,17 @@ export function PracticePage() {
             >
               <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all',
                 starredOnly ? 'left-[18px]' : 'left-0.5')} />
+            </button>
+          </label>
+          <label className="flex items-center justify-between bg-white rounded-xl px-4 py-1.5 border border-slate-200">
+            <span className="text-sm text-slate-700">优先未练习的题</span>
+            <button
+              onClick={() => setPrioritizeUnpracticed(!prioritizeUnpracticed)}
+              className={cn('w-10 h-5 rounded-full transition-colors relative overflow-hidden shrink-0',
+                prioritizeUnpracticed ? 'bg-purple-500' : 'bg-slate-300')}
+            >
+              <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all',
+                prioritizeUnpracticed ? 'left-[18px]' : 'left-0.5')} />
             </button>
           </label>
         </div>

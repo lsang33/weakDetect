@@ -65,11 +65,13 @@ function MistakeCard({ mistake, stats }: { mistake: MistakeRecord; stats?: { cor
               <span className="ml-2 text-amber-500">（缺原文）</span>
             )}
           </p>
-          {stats && stats.total > 0 && (
+          {stats ? (
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
               <span>✅ {stats.correct}/{stats.total}</span>
               <span className="flex items-center gap-0.5"><Clock size={10} /> {formatPracticeTime(Math.round(stats.avgMs))}/题</span>
             </p>
+          ) : (
+            <p className="text-xs text-slate-400 mt-1">未练习</p>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
