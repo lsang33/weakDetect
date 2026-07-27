@@ -117,14 +117,18 @@ export function PracticePage() {
   const [starredOnly, setStarredOnly] = useState(false)
   const [prioritizeUnpracticed, setPrioritizeUnpracticed] = useState(false)
 
+  // === 练习状态 ===
+  const [questions, setQuestions] = useState<MistakeRecord[]>([])
+  const [currentIdx, setCurrentIdx] = useState(0)
+
   // === 手写模式 ===
   const [handwriting, setHandwriting] = useState(false)
   const handwritingCache = useRef<Map<number, ImageData>>(new Map())
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvasContainerRef = useRef<HTMLDivElement | null>(null)
   const isDrawing = useRef(false)
+  const prevIdxRef = useRef(currentIdx)
 
-  // 手写 Canvas 初始化/恢复
   function initCanvas(forIdx: number) {
     const canvas = canvasRef.current
     const container = canvasContainerRef.current
@@ -149,7 +153,6 @@ export function PracticePage() {
     handwritingCache.current.set(forIdx, ctx.getImageData(0, 0, canvas.width, canvas.height))
   }
 
-  // 手写 Pointer 事件
   function handlePointerDown(e: React.PointerEvent) {
     if (!handwriting) return
     isDrawing.current = true
@@ -177,21 +180,16 @@ export function PracticePage() {
     isDrawing.current = false
   }
 
-  // 切题时保存/恢复
-  const prevIdxRef = useRef(currentIdx)
   useEffect(() => {
-    if (phase !== 'practice' && phase !== 'exam') return
     if (handwriting && prevIdxRef.current !== currentIdx) {
       saveCanvas(prevIdxRef.current)
-      initCanvas(currentIdx)
+      requestAnimationFrame(() => initCanvas(currentIdx))
     }
     prevIdxRef.current = currentIdx
   }, [currentIdx])
 
-  // 手写模式切换
   function toggleHandwriting() {
     if (handwriting) {
-      // 退出：保存当前
       saveCanvas(currentIdx)
       setHandwriting(false)
     } else {
@@ -200,7 +198,6 @@ export function PracticePage() {
     }
   }
 
-  // 退出练习时清除手写缓存
   function clearPractice() {
     handwritingCache.current.clear()
     setHandwriting(false)
@@ -209,9 +206,6 @@ export function PracticePage() {
     setResults([])
   }
 
-  // === 练习状态 ===
-  const [questions, setQuestions] = useState<MistakeRecord[]>([])
-  const [currentIdx, setCurrentIdx] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [examAnswers, setExamAnswers] = useState<Record<number, string>>({})
