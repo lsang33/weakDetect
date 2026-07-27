@@ -69,6 +69,30 @@ export function MistakeDetailPage() {
     return { correct, total, avgMs: totalMs / total }
   }, [practiceRecords, mistake])
 
+  const [localNotes, setLocalNotes] = useState(mistake?.notes || '')
+  const [notesDirty, setNotesDirty] = useState(false)
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [notesSaved, setNotesSaved] = useState(false)
+
+  // 题目切换时同步笔记
+  useEffect(() => {
+    setLocalNotes(mistake?.notes || '')
+    setNotesDirty(false)
+    setNotesSaved(false)
+  }, [id])
+
+  async function saveNotes() {
+    if (!mistake || !notesDirty) return
+    setNotesSaving(true)
+    try {
+      await update(mistake.id, { notes: localNotes.trim() || undefined })
+      setNotesDirty(false)
+      setNotesSaved(true)
+      setTimeout(() => setNotesSaved(false), 2000)
+    } catch { /* ignore */ }
+    setNotesSaving(false)
+  }
+
   const [expandAi, setExpandAi] = useState(true)
   const [diagnosing, setDiagnosing] = useState(false)
   const [diagError, setDiagError] = useState('')
@@ -704,13 +728,23 @@ export function MistakeDetailPage() {
         )}
       </div>
 
-      {/* 备注 */}
-      {mistake.notes && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-700 mb-2">备注</h3>
-          <p className="text-sm text-slate-600 whitespace-pre-wrap">{mistake.notes}</p>
+      {/* 笔记 */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-slate-700">📝 笔记</h3>
+          <span className="text-[11px] text-slate-400">
+            {notesSaving ? '保存中...' : notesSaved ? '已保存' : notesDirty ? '未保存' : ''}
+          </span>
         </div>
-      )}
+        <textarea
+          value={localNotes}
+          onChange={e => { setLocalNotes(e.target.value); setNotesDirty(true) }}
+          onBlur={saveNotes}
+          placeholder="记录解题思路、易错点、心得..."
+          rows={3}
+          className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 placeholder:text-slate-300 resize-none"
+        />
+      </div>
 
       {/* 操作按钮 */}
       <div className="flex gap-2">
