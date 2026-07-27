@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Trash2, CheckCircle2, RotateCcw, Lightbulb, PlusCircle, ChevronDown, ChevronUp, Camera, Edit3, RefreshCw, Save, Star } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { ArrowLeft, Trash2, CheckCircle2, RotateCcw, Lightbulb, PlusCircle, ChevronDown, ChevronUp, Camera, Edit3, RefreshCw, Save, Star, Clock } from 'lucide-react'
 import { useMistake, useMistakeActions } from '../hooks/useMistakes'
 import {
   MODULE_LABELS, MODULE_COLORS, ERROR_TYPE_LABELS, ERROR_TYPE_COLORS,
@@ -15,7 +16,16 @@ import type { OcrResult } from '../services/ocrService'
 import { diagnoseMistake as qwenDiagnose, diagnoseMistakeStep1b as qwenDiagnoseStep1b } from '../services/diagnoseService'
 import { deepseekDiagnose, deepseekDiagnoseStep1b, getDsModelName } from '../services/deepseekService'
 import { cn } from '../lib/cn'
-import { mistakeRepository } from '../db'
+import { mistakeRepository, practiceRecordRepository } from '../db'
+
+function formatPracticeTime(ms: number): string {
+  if (ms < 1000) return '<1秒'
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s}秒`
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return sec > 0 ? `${m}分${sec}秒` : `${m}分`
+}
 
 const ALL_MODULES = Object.values(ExamModule) as ExamModule[]
 const ALL_ERROR_TYPES = Object.values(ErrorType) as ErrorType[]
@@ -40,6 +50,25 @@ export function MistakeDetailPage() {
   const [attemptMethod, setAttemptMethod] = useState('')
   const [attemptResult, setAttemptResult] = useState<ImprovementResult>('helped')
   const [attemptNotes, setAttemptNotes] = useState('')
+  const practiceRecords = useLiveQuery(() => practiceRecordRepository.getAll(), []) ?? []
+
+  const practiceStats = useMemo(() => {
+    if (!mistake) return null
+    let correct = 0, total = 0, totalMs = 0
+    for (const record of practiceRecords) {
+      for (let i = 0; i < record.questionIds.length; i++) {
+        if (record.questionIds[i] !== mistake.id) continue
+        const result = record.results[i]
+        if (!result) continue
+        total++
+        if (result.correct) correct++
+        totalMs += result.timeMs || 0
+      }
+    }
+    if (total === 0) return null
+    return { correct, total, avgMs: totalMs / total }
+  }, [practiceRecords, mistake])
+
   const [expandAi, setExpandAi] = useState(true)
   const [diagnosing, setDiagnosing] = useState(false)
   const [diagError, setDiagError] = useState('')
@@ -331,6 +360,14 @@ export function MistakeDetailPage() {
           {mistake.reviewedAt && ` · 上次复习 ${formatDate(mistake.reviewedAt)}`}
           {` · 复习 ${mistake.reviewCount} 次`}
         </p>
+        {practiceStats && (
+          <p className="text-xs mt-1 flex items-center gap-2">
+            <span className={practiceStats.correct === practiceStats.total ? 'text-green-600' : 'text-amber-600'}>
+              ✅ 练习 {practiceStats.correct}/{practiceStats.total}
+            </span>
+            <span className="text-slate-400 flex items-center gap-0.5"><Clock size={10} /> {formatPracticeTime(Math.round(practiceStats.avgMs))}/题</span>
+          </p>
+        )}
       </div>
 
       {/* 题目内容卡片 */}

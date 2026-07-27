@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Search, Filter, X, CheckCircle2, FileText, AlertCircle, Star, Download, Clock } from 'lucide-react'
+import { Search, Filter, X, CheckCircle2, AlertCircle, Star, Download, Clock } from 'lucide-react'
 import { useMistakes, useCoverage } from '../hooks/useMistakes'
 import { ExamModule, ErrorType, MODULE_LABELS, ERROR_TYPE_SHORT_LABELS, MODULE_COLORS } from '../lib/constants'
 import { formatDate } from '../lib/dateUtils'
@@ -26,65 +26,65 @@ const ALL_ERROR_TYPES = Object.values(ErrorType)
 function MistakeCard({ mistake, stats }: { mistake: MistakeRecord; stats?: { correct: number; total: number; avgMs: number } }) {
   const navigate = useNavigate()
   const hasAiDiagnosis = !!mistake.quickDiagnosis
+  const statusParts: string[] = []
 
   async function handleStar(e: React.MouseEvent) {
     e.stopPropagation()
     try { await mistakeRepository.toggleStar(mistake.id) } catch { /* ignore */ }
   }
 
+  // 第二行标签
+  statusParts.push(ERROR_TYPE_SHORT_LABELS[mistake.errorType])
+  if (!hasAiDiagnosis) statusParts.push('待诊断')
+  statusParts.push(mistake.mastered ? '已掌握' : '未掌握')
+
   return (
     <div
       onClick={() => navigate(`/mistakes/${mistake.id}`)}
-      className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-transform"
+      className="bg-white rounded-xl px-3 py-2.5 shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-transform"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span
-              className="text-xs font-medium px-2 py-0.5 rounded-full text-white shrink-0"
-              style={{ backgroundColor: MODULE_COLORS[mistake.module] }}
-            >
-              {MODULE_LABELS[mistake.module]}
-            </span>
-            <span className="text-xs text-slate-400">
-              {ERROR_TYPE_SHORT_LABELS[mistake.errorType]}
-            </span>
-            {!hasAiDiagnosis && (
-              <span className="text-xs text-purple-400">待诊断</span>
-            )}
-            {mistake.mastered && (
-              <span className="flex items-center gap-0.5 text-xs text-green-500">
-                <CheckCircle2 size={12} /> 已掌握
-              </span>
-            )}
-          </div>
-          <p className="text-sm font-medium text-slate-800">{mistake.knowledgePoint}</p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {mistake.subCategory}
-            {!mistake.questionStem && (
-              <span className="ml-2 text-amber-500">（缺原文）</span>
-            )}
-          </p>
-          {stats ? (
-            <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-              <span>✅ {stats.correct}/{stats.total}</span>
-              <span className="flex items-center gap-0.5"><Clock size={10} /> {formatPracticeTime(Math.round(stats.avgMs))}/题</span>
-            </p>
-          ) : (
-            <p className="text-xs text-slate-400 mt-1">未练习</p>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {mistake.questionStem && <FileText size={14} className="text-blue-300" />}
-          <button onClick={handleStar} className="p-0.5">
-            <Star size={16} fill={mistake.starred ? '#F59E0B' : 'none'}
-              className={mistake.starred ? 'text-amber-400' : 'text-slate-300'} />
-          </button>
-          <span className="text-xs text-slate-400 shrink-0">{formatDate(mistake.createdAt)}</span>
-        </div>
+      {/* 第一行：模块 + 知识点 + 收藏 + 日期 */}
+      <div className="flex items-center gap-2">
+        <span
+          className="text-[11px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0"
+          style={{ backgroundColor: MODULE_COLORS[mistake.module] }}
+        >
+          {MODULE_LABELS[mistake.module]}
+        </span>
+        <span className="text-sm text-slate-800 truncate flex-1 min-w-0">{mistake.knowledgePoint}</span>
+        <button onClick={handleStar} className="shrink-0">
+          <Star size={14} fill={mistake.starred ? '#F59E0B' : 'none'}
+            className={mistake.starred ? 'text-amber-400' : 'text-slate-300'} />
+        </button>
+        <span className="text-[11px] text-slate-400 shrink-0">{formatDate(mistake.createdAt)}</span>
       </div>
+
+      {/* 第二行：练习情况 + 错误类型 + 状态 */}
+      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
+        {stats ? (
+          <span className={stats.correct === stats.total ? 'text-green-600' : 'text-amber-600'}>
+            ✅ {stats.correct}/{stats.total} · {formatPracticeTime(Math.round(stats.avgMs))}/题
+          </span>
+        ) : (
+          <span className="text-slate-400">未练习</span>
+        )}
+        <span className="text-slate-300">·</span>
+        <span className={cn(
+          !hasAiDiagnosis && 'text-purple-400',
+          mistake.mastered && 'text-green-500',
+          !mistake.mastered && hasAiDiagnosis && 'text-slate-500'
+        )}>
+          {statusParts.join(' · ')}
+        </span>
+      </div>
+
+      {/* 第三行：子分类（仅在有特殊标记时显示） */}
+      {mistake.subCategory && mistake.subCategory !== mistake.knowledgePoint && (
+        <p className="text-[11px] text-slate-400 mt-0.5 truncate">{mistake.subCategory}{!mistake.questionStem && ' · 缺原文'}</p>
+      )}
     </div>
   )
+}
 }
 
 export function MistakeListPage() {
