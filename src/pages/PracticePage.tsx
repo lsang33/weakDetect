@@ -331,6 +331,27 @@ export function PracticePage() {
     try { await mistakeRepository.recordPracticeResult(q.id, correct) } catch { /* ignore */ }
   }
 
+  function prevQuestion() {
+    if (currentIdx <= 0) return
+    // 保存当前题计时
+    const now = Date.now()
+    const prev = timingsRef.current.get(currentIdx) || 0
+    timingsRef.current.set(currentIdx, prev + (now - questionStartRef.current))
+    // 回到上一题，从 results 恢复答题状态
+    setCurrentIdx(currentIdx - 1)
+    const r = results[currentIdx - 1]
+    if (r) {
+      setSelectedAnswer(r.userAnswer)
+      setShowFeedback(true)
+      if (mode === 'exam') {
+        setExamAnswers(prev2 => ({ ...prev2, [currentIdx - 1]: r.userAnswer }))
+      }
+    } else {
+      setSelectedAnswer('')
+      setShowFeedback(false)
+    }
+  }
+
   function nextQuestion() {
     if (currentIdx + 1 >= questions.length) {
       setPhase('result')
@@ -837,11 +858,14 @@ export function PracticePage() {
               </div>
             )}
             {statsText && <p className="text-center text-xs text-slate-400">{statsText}</p>}
+            {showFeedback && currentIdx > 0 && (
+              <div className="flex gap-2">
+                <button onClick={prevQuestion}
+                  className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
+                >上一题</button>
+              </div>
+            )}
             <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmType('exit')}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
-              >退出</button>
               {showFeedback ? (
                 <button onClick={nextQuestion}
                   className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
@@ -854,6 +878,10 @@ export function PracticePage() {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setConfirmType('exit')}
+              className="w-full py-2 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
+            >退出</button>
           </>
         ) : (
           <>
