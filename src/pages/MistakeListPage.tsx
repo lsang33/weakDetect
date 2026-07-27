@@ -85,7 +85,6 @@ function MistakeCard({ mistake, stats }: { mistake: MistakeRecord; stats?: { cor
     </div>
   )
 }
-}
 
 export function MistakeListPage() {
   const navigate = useNavigate()
