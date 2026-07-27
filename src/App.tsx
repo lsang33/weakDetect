@@ -1,4 +1,4 @@
-import { Component } from 'react'
+import { Component, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { MobileShell } from './components/layout/MobileShell'
 import { DashboardPage } from './pages/DashboardPage'
@@ -9,6 +9,26 @@ import { AnalyticsPage } from './pages/AnalyticsPage'
 import { PracticePage } from './pages/PracticePage'
 import { BatchAnalysisPage } from './pages/BatchAnalysisPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { db } from './db/database'
+
+/** 一次性补齐旧数据缺失的 updatedAt */
+function useMigrateUpdatedAt() {
+  useEffect(() => {
+    const done = localStorage.getItem('updatedAtMigrationDone')
+    if (done) return
+    ;(async () => {
+      const all = await db.mistakes.toArray()
+      for (const m of all) {
+        if (!m.updatedAt) {
+          await db.mistakes.update(m.id, {
+            updatedAt: m.reviewedAt || m.createdAt,
+          })
+        }
+      }
+      localStorage.setItem('updatedAtMigrationDone', '1')
+    })()
+  }, [])
+}
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -36,6 +56,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: Er
 }
 
 export default function App() {
+  useMigrateUpdatedAt()
   return (
     <ErrorBoundary>
       <BrowserRouter basename="/weakDetect">

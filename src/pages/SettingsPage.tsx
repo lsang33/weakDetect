@@ -370,7 +370,7 @@ export function SettingsPage() {
         } else {
           const localTime = (local.updatedAt?.getTime() ?? local.createdAt?.getTime?.() ?? 0) as number
           const impTime = (imp.updatedAt?.getTime() ?? imp.createdAt?.getTime?.() ?? 0) as number
-          if (impTime >= localTime) { mistakesResult.updated++ }
+          if (impTime > localTime) { mistakesResult.updated++ }
           else { mistakesResult.skipped++ }
         }
       }
@@ -412,7 +412,7 @@ export function SettingsPage() {
         else {
           const localTime = (local.updatedAt?.getTime() ?? local.createdAt?.getTime?.() ?? 0) as number
           const impTime = (imp.updatedAt?.getTime() ?? imp.createdAt?.getTime?.() ?? 0) as number
-          if (impTime >= localTime) { await db.mistakes.put(imp); updated++ }
+          if (impTime > localTime) { await db.mistakes.put(imp); updated++ }
           else { skipped++ }
         }
       }
