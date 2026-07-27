@@ -586,6 +586,7 @@ export function PracticePage() {
                     <button
                       onClick={async (e) => {
                         e.stopPropagation()
+                        if (!window.confirm('确定删除这条练习记录？')) return
                         await practiceRecordRepository.delete(r.id)
                       }}
                       className="px-3 py-2.5 text-slate-300 hover:text-red-500 shrink-0"
