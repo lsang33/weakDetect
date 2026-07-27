@@ -1,19 +1,29 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, X, CheckCircle2, FileText, AlertCircle, Star, Download } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Search, Filter, X, CheckCircle2, FileText, AlertCircle, Star, Download, Clock } from 'lucide-react'
 import { useMistakes, useCoverage } from '../hooks/useMistakes'
 import { ExamModule, ErrorType, MODULE_LABELS, ERROR_TYPE_SHORT_LABELS, MODULE_COLORS } from '../lib/constants'
 import { formatDate } from '../lib/dateUtils'
 import { searchMistakes, filterMistakes } from '../services/analyticsService'
 import { cn } from '../lib/cn'
-import { mistakeRepository } from '../db'
+import { mistakeRepository, practiceRecordRepository } from '../db'
 import { downloadTxt, printPdf, copyText } from '../services/exportService'
 import type { MistakeRecord } from '../models/mistake'
+
+function formatPracticeTime(ms: number): string {
+  if (ms < 1000) return '<1秒'
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s}秒`
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return sec > 0 ? `${m}分${sec}秒` : `${m}分`
+}
 
 const ALL_MODULES = Object.values(ExamModule)
 const ALL_ERROR_TYPES = Object.values(ErrorType)
 
-function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
+function MistakeCard({ mistake, stats }: { mistake: MistakeRecord; stats?: { correct: number; total: number; avgMs: number } }) {
   const navigate = useNavigate()
   const hasAiDiagnosis = !!mistake.quickDiagnosis
 
@@ -55,6 +65,12 @@ function MistakeCard({ mistake }: { mistake: MistakeRecord }) {
               <span className="ml-2 text-amber-500">（缺原文）</span>
             )}
           </p>
+          {stats && stats.total > 0 && (
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+              <span>✅ {stats.correct}/{stats.total}</span>
+              <span className="flex items-center gap-0.5"><Clock size={10} /> {formatPracticeTime(Math.round(stats.avgMs))}/题</span>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {mistake.questionStem && <FileText size={14} className="text-blue-300" />}
@@ -73,6 +89,29 @@ export function MistakeListPage() {
   const navigate = useNavigate()
   const mistakes = useMistakes()
   const coverage = useCoverage()
+  const practiceRecords = useLiveQuery(() => practiceRecordRepository.getAll(), []) ?? []
+
+  const practiceStats = useMemo(() => {
+    const map = new Map<string, { correct: number; total: number; totalMs: number }>()
+    for (const record of practiceRecords) {
+      for (let i = 0; i < record.questionIds.length; i++) {
+        const qid = record.questionIds[i]
+        const result = record.results[i]
+        if (!result) continue
+        const entry = map.get(qid) || { correct: 0, total: 0, totalMs: 0 }
+        entry.total++
+        if (result.correct) entry.correct++
+        entry.totalMs += result.timeMs || 0
+        map.set(qid, entry)
+      }
+    }
+    const resultMap = new Map<string, { correct: number; total: number; avgMs: number }>()
+    for (const [id, entry] of map) {
+      resultMap.set(id, { correct: entry.correct, total: entry.total, avgMs: entry.totalMs / entry.total })
+    }
+    return resultMap
+  }, [practiceRecords])
+
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [filterModule, setFilterModule] = useState<ExamModule | undefined>()
@@ -308,7 +347,7 @@ export function MistakeListPage() {
       {filtered.length > 0 ? (
         <div className="space-y-2">
           {filtered.map(m => (
-            <MistakeCard key={m.id} mistake={m} />
+            <MistakeCard key={m.id} mistake={m} stats={practiceStats.get(m.id)} />
           ))}
         </div>
       ) : (
