@@ -858,30 +858,30 @@ export function PracticePage() {
               </div>
             )}
             {statsText && <p className="text-center text-xs text-slate-400">{statsText}</p>}
-            {showFeedback && currentIdx > 0 && (
-              <div className="flex gap-2">
-                <button onClick={prevQuestion}
-                  className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
-                >上一题</button>
-              </div>
-            )}
             <div className="flex gap-2">
               {showFeedback ? (
-                <button onClick={nextQuestion}
-                  className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
-                  {isLast ? '完成' : '下一题'}
-                </button>
+                <>
+                  {currentIdx > 0 && (
+                    <button onClick={prevQuestion}
+                      className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
+                    >上一题</button>
+                  )}
+                  <button onClick={nextQuestion}
+                    className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
+                    {isLast ? '完成' : '下一题'}
+                  </button>
+                </>
               ) : (
                 <button onClick={submitAnswer} disabled={!selectedAnswer}
                   className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium disabled:opacity-40">
                   确认
                 </button>
               )}
+              <button
+                onClick={() => setConfirmType('exit')}
+                className="py-2 px-4 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white shrink-0"
+              >退出</button>
             </div>
-            <button
-              onClick={() => setConfirmType('exit')}
-              className="w-full py-2 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white"
-            >退出</button>
           </>
         ) : (
           <>
