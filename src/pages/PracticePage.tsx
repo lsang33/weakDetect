@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History, X, ArrowLeft } from 'lucide-react'
+import { Play, CheckCircle2, XCircle, Star, ChevronRight, ChevronDown, Clock, Target, History, X, ArrowLeft, Pen } from 'lucide-react'
 import { useMistakes } from '../hooks/useMistakes'
 import { mistakeRepository, practiceRecordRepository } from '../db'
 import { MODULE_LABELS, MODULE_COLORS } from '../lib/constants'
@@ -116,6 +116,98 @@ export function PracticePage() {
   const [includeMastered, setIncludeMastered] = useState(false)
   const [starredOnly, setStarredOnly] = useState(false)
   const [prioritizeUnpracticed, setPrioritizeUnpracticed] = useState(false)
+
+  // === 手写模式 ===
+  const [handwriting, setHandwriting] = useState(false)
+  const handwritingCache = useRef<Map<number, ImageData>>(new Map())
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null)
+  const isDrawing = useRef(false)
+
+  // 手写 Canvas 初始化/恢复
+  function initCanvas(forIdx: number) {
+    const canvas = canvasRef.current
+    const container = canvasContainerRef.current
+    if (!canvas || !container) return
+    canvas.width = container.clientWidth
+    canvas.height = container.clientHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.strokeStyle = '#ef4444'
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    const cached = handwritingCache.current.get(forIdx)
+    if (cached) ctx.putImageData(cached, 0, 0)
+  }
+
+  function saveCanvas(forIdx: number) {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    handwritingCache.current.set(forIdx, ctx.getImageData(0, 0, canvas.width, canvas.height))
+  }
+
+  // 手写 Pointer 事件
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!handwriting) return
+    isDrawing.current = true
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const rect = canvas.getBoundingClientRect()
+    ctx.beginPath()
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top)
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!handwriting || !isDrawing.current) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const rect = canvas.getBoundingClientRect()
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top)
+    ctx.stroke()
+  }
+
+  function handlePointerUp() {
+    isDrawing.current = false
+  }
+
+  // 切题时保存/恢复
+  const prevIdxRef = useRef(currentIdx)
+  useEffect(() => {
+    if (phase !== 'practice' && phase !== 'exam') return
+    if (handwriting && prevIdxRef.current !== currentIdx) {
+      saveCanvas(prevIdxRef.current)
+      initCanvas(currentIdx)
+    }
+    prevIdxRef.current = currentIdx
+  }, [currentIdx])
+
+  // 手写模式切换
+  function toggleHandwriting() {
+    if (handwriting) {
+      // 退出：保存当前
+      saveCanvas(currentIdx)
+      setHandwriting(false)
+    } else {
+      setHandwriting(true)
+      requestAnimationFrame(() => initCanvas(currentIdx))
+    }
+  }
+
+  // 退出练习时清除手写缓存
+  function clearPractice() {
+    handwritingCache.current.clear()
+    setHandwriting(false)
+    setPhase('select')
+    setQuestions([])
+    setResults([])
+  }
 
   // === 练习状态 ===
   const [questions, setQuestions] = useState<MistakeRecord[]>([])
@@ -643,36 +735,53 @@ export function PracticePage() {
 
         {/* 顶部信息栏 */}
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <span style={{ color: MODULE_COLORS[q.module] }}>{MODULE_LABELS[q.module]}</span>
-          <span>{currentIdx + 1} / {questions.length}</span>
+          <div className="flex items-center gap-2">
+            <span style={{ color: MODULE_COLORS[q.module] }}>{MODULE_LABELS[q.module]}</span>
+            {handwritingCache.current.has(currentIdx) && !handwriting && (
+              <span className="text-red-400 text-[10px]">有涂鸦</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleHandwriting}
+              className={cn('p-1 rounded', handwriting ? 'bg-red-100 text-red-500' : 'text-slate-400 hover:text-slate-600')}
+            >
+              <Pen size={16} />
+            </button>
+            <span>{currentIdx + 1} / {questions.length}</span>
+          </div>
         </div>
 
         {/* 题目卡片 */}
-        <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-          <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap mb-4">{q.questionStem}</p>
+        <div
+          ref={canvasContainerRef}
+          className={cn('bg-white rounded-xl border border-slate-100 shadow-sm relative', handwriting ? 'overflow-hidden' : '')}
+        >
+          <div className={cn('p-4', handwriting && 'pointer-events-none select-none')}>
+            <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap mb-4">{q.questionStem}</p>
 
-          {/* 选项按钮 */}
-          <div className="space-y-2">
-            {LETTERS.map(ch => {
-              const isSelected = selectedAnswer === ch
-              const isCorrect = showFeedback && ch === q.correctAnswer?.trim()
-              const isWrong = showFeedback && isSelected && ch !== q.correctAnswer?.trim()
-              const disabled = showFeedback
-              return (
-                <button
-                  key={ch}
-                  onClick={() => !disabled && setSelectedAnswer(ch === selectedAnswer ? '' : ch)}
-                  disabled={disabled}
-                  className={cn('w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-all',
-                    isCorrect ? 'bg-green-50 border-green-300 text-green-700' :
-                    isWrong ? 'bg-red-50 border-red-300 text-red-700' :
-                    isSelected ? 'bg-purple-50 border-purple-300 text-purple-700' :
-                    'bg-white border-slate-200 text-slate-600 active:bg-slate-50')}
-                >
-                  <span className="font-medium">{ch}</span>
-                </button>
-              )
-            })}
+            {/* 选项按钮 */}
+            <div className="space-y-2">
+              {LETTERS.map(ch => {
+                const isSelected = selectedAnswer === ch
+                const isCorrect = showFeedback && ch === q.correctAnswer?.trim()
+                const isWrong = showFeedback && isSelected && ch !== q.correctAnswer?.trim()
+                const disabled = showFeedback
+                return (
+                  <button
+                    key={ch}
+                    onClick={() => !disabled && setSelectedAnswer(ch === selectedAnswer ? '' : ch)}
+                    disabled={disabled}
+                    className={cn('w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-all',
+                      isCorrect ? 'bg-green-50 border-green-300 text-green-700' :
+                      isWrong ? 'bg-red-50 border-red-300 text-red-700' :
+                      isSelected ? 'bg-purple-50 border-purple-300 text-purple-700' :
+                      'bg-white border-slate-200 text-slate-600 active:bg-slate-50')}
+                  >
+                    <span className="font-medium">{ch}</span>
+                  </button>
+                )
+              })}
           </div>
 
           {/* 刷题模式：答题反馈 */}
@@ -696,6 +805,20 @@ export function PracticePage() {
             </div>
           )}
         </div>
+
+        {/* 手写 Canvas 层 */}
+        {handwriting && (
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 z-10"
+            style={{ touchAction: 'none' }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+          />
+        )}
+      </div>
 
         {/* 刷题模式操作 */}
         {mode === 'practice' ? (
@@ -810,7 +933,7 @@ export function PracticePage() {
             className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
             查看回顾
           </button>
-          <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
+          <button onClick={clearPractice}
             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white">
             再来一轮
           </button>
@@ -964,11 +1087,11 @@ export function PracticePage() {
 
         {/* 底部 */}
         <div className="flex gap-2">
-          <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
+          <button onClick={clearPractice}
             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-500 bg-white">
             退出
           </button>
-          <button onClick={() => { setPhase('select'); setQuestions([]); setResults([]) }}
+          <button onClick={clearPractice}
             className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-medium">
             再来一轮
           </button>
@@ -983,7 +1106,7 @@ export function PracticePage() {
       <p className="text-slate-400 text-sm mb-1">页面状态异常</p>
       <p className="text-xs text-slate-400 mb-4">phase={phase} q={questions.length} r={results.length}</p>
       <button
-        onClick={() => { clearReviewCache(); setPhase('select'); setQuestions([]); setResults([]) }}
+        onClick={() => { clearReviewCache(); clearPractice() }}
         className="px-5 py-2 rounded-xl bg-purple-500 text-white text-sm font-medium"
       >返回练习首页</button>
     </div>
