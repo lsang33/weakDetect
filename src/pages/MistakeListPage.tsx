@@ -322,7 +322,7 @@ export function MistakeListPage() {
                 onClick={() => setFilterHasNotes(!filterHasNotes)}
                 className={cn('px-2.5 py-1 rounded-lg text-xs', filterHasNotes ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-500')}
               >
-                📝 有笔记
+                有笔记
               </button>
             </div>
           </div>
