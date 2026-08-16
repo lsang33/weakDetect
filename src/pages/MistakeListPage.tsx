@@ -120,6 +120,7 @@ export function MistakeListPage() {
   const [showMastered, setShowMastered] = useState<boolean | undefined>(undefined)
   const [filterNoDiagnosis, setFilterNoDiagnosis] = useState(false)
   const [filterStarred, setFilterStarred] = useState(false)
+  const [filterHasNotes, setFilterHasNotes] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [datePreset, setDatePreset] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all')
   const [dateStart, setDateStart] = useState('')
@@ -138,6 +139,10 @@ export function MistakeListPage() {
 
     if (filterStarred) {
       result = result.filter(m => m.starred)
+    }
+
+    if (filterHasNotes) {
+      result = result.filter(m => m.notes && m.notes.trim().length > 0)
     }
 
     // 日期筛选
@@ -168,9 +173,9 @@ export function MistakeListPage() {
     }
 
     return result
-  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis, filterStarred, datePreset, dateStart, dateEnd])
+  }, [mistakes, search, filterModule, filterErrorType, showMastered, filterNoDiagnosis, filterStarred, filterHasNotes, datePreset, dateStart, dateEnd])
 
-  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis, filterStarred, datePreset !== 'all'].filter(Boolean).length
+  const activeFilterCount = [filterModule, filterErrorType, showMastered !== undefined, filterNoDiagnosis, filterStarred, filterHasNotes, datePreset !== 'all'].filter(Boolean).length
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -312,6 +317,12 @@ export function MistakeListPage() {
                 className={cn('px-2.5 py-1 rounded-lg text-xs flex items-center gap-0.5', filterStarred ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500')}
               >
                 <Star size={10} fill={filterStarred ? 'currentColor' : 'none'} /> 收藏
+              </button>
+              <button
+                onClick={() => setFilterHasNotes(!filterHasNotes)}
+                className={cn('px-2.5 py-1 rounded-lg text-xs', filterHasNotes ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-500')}
+              >
+                📝 有笔记
               </button>
             </div>
           </div>
