@@ -74,12 +74,12 @@ export function MistakeDetailPage() {
   const [notesSaving, setNotesSaving] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
 
-  // 题目切换时同步笔记
+  // 题目切换或数据加载时同步笔记（编辑中不覆盖）
   useEffect(() => {
+    if (notesDirty) return
     setLocalNotes(mistake?.notes || '')
-    setNotesDirty(false)
     setNotesSaved(false)
-  }, [id])
+  }, [id, mistake?.notes])
 
   async function saveNotes() {
     if (!mistake || !notesDirty) return
